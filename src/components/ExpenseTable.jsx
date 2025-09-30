@@ -424,7 +424,17 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
             </tr>
 
             {/* Dynamically rendered personal deduction items */}
-            {Object.values(personalDenta.deductingParticipants[p.id]}
+            {Object.values(personalDeductionItems).map(deductionItem => ( // Use Object.values to map over the items
+              <tr key={deductionItem.id} className="border-b hover:bg-gray-50">
+                <td className="py-1 px-2 font-medium border-r">{deductionItem.itemName}</td>
+                <td className="py-1 px-4 border-r text-right">{deductionItem.totalCost.toLocaleString()} 원</td>
+                <td className="py-3 px-4 border-r text-center"></td> {/* Empty cell for "사비" column */}
+                {participants.map(p => (
+                  <td key={p.id} className="py-3 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={!!deductionItem.deductingParticipants[p.id]}
                       onChange={() => handlePersonalDeductionCheckboxChange(deductionItem.id, p.id)}
                     />
                   </td>
