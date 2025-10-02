@@ -441,17 +441,19 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest, title, setTitle, subtitle
               </td>
               <td colSpan={participants.length + 3}></td> {/* Adjusted colSpan for new "사비" column */}
             </tr>
-            <tr className="bg-gray-200 font-bold">
-              <td className="py-3 px-4 border-r">합계</td>
-              <td className="py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td> {/* Display totalExpensesSum */}
-              <td className="py-3 px-4 border-r text-right"></td> {/* Empty cell for "사비" in 합계 row */}
-              {participants.map(p => (
-                <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
-                  {Math.ceil(participantTotals[p.id] || 0).toLocaleString()} 원
-                </td>
-              ))}
-              <td className="border-l"></td>
-            </tr>
+            {!hasActivePersonalDeductions && (
+              <tr className="bg-gray-200 font-bold">
+                <td className="py-3 px-4 border-r">합계</td>
+                <td className="py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td> {/* Display totalExpensesSum */}
+                <td className="py-3 px-4 border-r text-right"></td> {/* Empty cell for "사비" in 합계 row */}
+                {participants.map(p => (
+                  <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
+                    {Math.ceil(participantTotals[p.id] || 0).toLocaleString()} 원
+                  </td>
+                ))}
+                <td className="border-l"></td>
+              </tr>
+            )}
 
             {/* Dynamically rendered personal deduction items */}
             {Object.values(personalDeductionItems).map(deductionItem => ( // Use Object.values to map over the items
@@ -475,12 +477,12 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest, title, setTitle, subtitle
             ))}
 
             {hasActivePersonalDeductions && ( // Conditionally render '계' row
-              <tr className="bg-blue-100 font-extrabold text-blue-800">
+              <tr className="bg-gray-200 font-bold">
                 <td className="py-3 px-4 border-r">계</td>
                 <td className="py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r"></td> {/* Empty cell for "사비" in 계 row */}
                 {participants.map(p => (
-                  <td key={p.id} className="py-3 px-4 text-right whitespace-nowrap">
+                  <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
                     {Math.ceil(finalTotals[p.id] || 0).toLocaleString()} 원
                   </td>
                 ))}
