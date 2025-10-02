@@ -128,30 +128,32 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
               placeholder="이름"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="w-1/2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="password"
               placeholder="비밀번호 (수정/삭제 시 필요)"
               value={guestPassword}
               onChange={(e) => setGuestPassword(e.target.value)}
-              className="w-1/2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         )}
-        <textarea
-          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows="3"
-          placeholder="댓글을 작성하세요..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-        ></textarea>
-        <button
-          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          onClick={handlePostComment}
-        >
-          작성
-        </button>
+        <div className="flex items-start gap-2">
+          <textarea
+            className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows="3"
+            placeholder="댓글을 작성하세요..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+          ></textarea>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            onClick={handlePostComment}
+          >
+            작성
+          </button>
+        </div>
       </div>
       <div className="space-y-4">
         {comments.length === 0 ? (
