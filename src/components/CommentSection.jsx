@@ -128,18 +128,18 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
               placeholder="이름"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="w-1/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/6 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="password"
               placeholder="비밀번호 (수정/삭제 시 필요)"
               value={guestPassword}
               onChange={(e) => setGuestPassword(e.target.value)}
-              className="w-1/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/6 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         )}
-        <div className="flex items-start gap-2">
+        <div className="flex items-stretch gap-2">
           <textarea
             className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows="3"
