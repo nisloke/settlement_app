@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const ExpenseTable = ({ onSettlementIdChange }) => {
+const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
   const [participants, setParticipants] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [personalDeductionItems, setPersonalDeductionItems] = useState({});
   const [editingCostId, setEditingCostId] = useState(null);
   const [settlementId, setSettlementId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
 
   // Debounce function
   const debounce = (func, delay) => {
@@ -28,44 +29,56 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
   // Load data from Supabase on initial render
   useEffect(() => {
     const fetchSettlement = async () => {
-      const { data, error } = await supabase
-        .from('settlements')
-        .select('id, data')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
-        console.error('Error fetching settlement:', error);
-      } else if (data) {
-        setSettlementId(data.id);
-        onSettlementIdChange(data.id);
-        const parsedData = data.data;
-        setParticipants(parsedData.participants || [{ id: 1, name: '참석자 1' }]);
-        setExpenses(parsedData.expenses || [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }]);
-        setPersonalDeductionItems(parsedData.personalDeductionItems || {});
-      } else {
-        // No existing settlement, create a new one
-        const initialParticipants = [{ id: 1, name: '참석자 1' }];
-        const initialExpenses = [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }];
-        const initialData = {
-          participants: initialParticipants,
-          expenses: initialExpenses,
-          personalDeductionItems: {}
-        };
-        const { data: newSettlement, error: insertError } = await supabase
+      if (user) {
+        const isGuestUser = user.id === import.meta.env.VITE_GUEST_USER_ID;
+
+        const targetUserId = isGuestUser
+          ? import.meta.env.VITE_OWNER_USER_ID
+          : user.id;
+
+        const { data, error } = await supabase
           .from('settlements')
-          .insert({ data: initialData })
-          .select();
+          .select('id, data')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-        if (insertError) {
-          console.error('Error inserting initial settlement:', insertError);
-        } else if (newSettlement && newSettlement.length > 0) {
-          setSettlementId(newSettlement[0].id);
-          onSettlementIdChange(newSettlement[0].id);
-          setParticipants(initialParticipants);
-          setExpenses(initialExpenses);
-          setPersonalDeductionItems({});
+        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+          console.error('Error fetching settlement:', error);
+        } else if (data) {
+          setSettlementId(data.id);
+          onSettlementIdChange(data.id);
+          const parsedData = data.data;
+          setParticipants(parsedData.participants || []);
+          setExpenses(parsedData.expenses || []);
+          setPersonalDeductionItems(parsedData.personalDeductionItems || {});
+        } else if (!isGuestUser) {
+          // No existing settlement for this user, create a new one (only if not a guest)
+          const initialParticipants = [{ id: 1, name: '참석자 1' }];
+          const initialExpenses = [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }];
+          const initialData = {
+            participants: initialParticipants,
+            expenses: initialExpenses,
+            personalDeductionItems: {}
+          };
+          const { data: newSettlement, error: insertError } = await supabase
+            .from('settlements')
+            .insert({ data: initialData, user_id: user.id })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Error inserting initial settlement:', insertError);
+          } else if (newSettlement) {
+            setSettlementId(newSettlement.id);
+            onSettlementIdChange(newSettlement.id);
+            setParticipants(initialParticipants);
+            setExpenses(initialExpenses);
+            setPersonalDeductionItems({});
+          }
         }
       }
     };
@@ -75,7 +88,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
 
   // Auto-save data to Supabase with debouncing
   useEffect(() => {
-    if (settlementId === null) return; // Don't save until settlementId is set
+    if (settlementId === null || isGuest) return; // Don't save if guest
 
     const dataToSave = {
       participants,
@@ -84,6 +97,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
     };
 
     const debouncedSave = debounce(async () => {
+      setSaveStatus('saving');
       const { error } = await supabase
         .from('settlements')
         .update({ data: dataToSave })
@@ -91,8 +105,10 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
 
       if (error) {
         console.error('Error saving settlement:', error);
+        setSaveStatus('error');
       } else {
         console.log('Settlement saved successfully!');
+        setSaveStatus('saved');
       }
     }, 1000); // 1-second debounce
 
@@ -329,9 +345,14 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
 
   return (
     <>
-      <div className="flex justify-end gap-1 mb-2">
-        <button onClick={addParticipant} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
-        <button onClick={removeParticipant} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+      <div className="flex justify-end items-center gap-2 mb-2">
+        <div className="text-sm text-gray-500">
+          {saveStatus === 'saving' && '저장 중...'}
+          {saveStatus === 'saved' && '저장됨'}
+          {saveStatus === 'error' && '저장 오류'}
+        </div>
+        <button onClick={addParticipant} disabled={isGuest} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
+        <button onClick={removeParticipant} disabled={isGuest} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
       </div>
 
       <div className="overflow-x-auto rounded-lg shadow-md">
@@ -340,10 +361,10 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
             <tr>
               <th scope="col" className="py-3 px-4 border-r">항목</th>
               <th scope="col" className="py-3 px-4 border-r">비용</th>
-              <th scope="col" className="py-3 px-4 border-r text-center">사비</th> {/* New "사비" column header */}
+              <th scope="col" className="py-3 px-4 border-r text-center">사비</th>
               {participants.map(p => (
                 <th key={p.id} scope="col" className="py-3 px-4">
-                  <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} className="w-full bg-transparent text-center font-bold"/>
+                  <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={isGuest} className="w-full bg-transparent text-center font-bold"/>
                 </th>
               ))}
               <th scope="col" className="py-3 px-4 border-l text-center">전체</th>
@@ -356,9 +377,9 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
 
               return (
                 <tr key={expense.id} className="border-b hover:bg-gray-50">
-                  <td className="py-1 px-2 font-medium border-r"><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} className="w-full p-2"/></td>
+                  <td className="py-1 px-2 font-medium border-r"><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={isGuest} className="w-full p-2"/></td>
                   <td className="py-1 px-4 border-r text-right">
-                    {editingCostId === expense.id ? (
+                    {editingCostId === expense.id && !isGuest ? (
                       <input
                         type="number"
                         value={expense.totalCost}
@@ -368,7 +389,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
                         autoFocus
                       />
                     ) : (
-                      <span onClick={() => setEditingCostId(expense.id)} className="block w-full p-4 cursor-pointer">
+                      <span onClick={() => !isGuest && setEditingCostId(expense.id)} className={`block w-full p-4 ${!isGuest && 'cursor-pointer'}`}>
                         {expense.totalCost.toLocaleString()} 원
                       </span>
                     )}
@@ -379,6 +400,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
                       className="w-4 h-4"
                       checked={!!personalDeductionItems[expense.id]} // Check if this expense is in personalDeductionItems
                       onChange={() => handleIsPersonalExpenseChange(expense.id)}
+                      disabled={isGuest}
                     />
                   </td>
                   {participants.map(p => (
@@ -388,6 +410,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
                         className="w-4 h-4"
                         checked={!!expense.attendees[p.id]}
                         onChange={() => handleAttendeeCheckboxChange(expense.id, p.id)}
+                        disabled={isGuest}
                       />
                     </td>
                   ))}
@@ -397,6 +420,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
                       className="w-4 h-4"
                       checked={areAllChecked}
                       onChange={() => handleSelectAllForRow(expense.id)}
+                      disabled={isGuest}
                     />
                   </td>
                 </tr>
@@ -405,8 +429,8 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
             <tr className="border-b">
               <td className="py-2 px-4">
                 <div className="flex items-center gap-1">
-                  <button onClick={addExpense} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
-                  <button onClick={removeExpense} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+                  <button onClick={addExpense} disabled={isGuest} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
+                  <button onClick={removeExpense} disabled={isGuest} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
                 </div>
               </td>
               <td colSpan={participants.length + 3}></td> {/* Adjusted colSpan for new "사비" column */}
@@ -436,6 +460,7 @@ const ExpenseTable = ({ onSettlementIdChange }) => {
                       className="w-4 h-4"
                       checked={!!deductionItem.deductingParticipants[p.id]}
                       onChange={() => handlePersonalDeductionCheckboxChange(deductionItem.id, p.id)}
+                      disabled={isGuest}
                     />
                   </td>
                 ))}
