@@ -478,7 +478,7 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest, title, setTitle, subtitle
 
             {hasActivePersonalDeductions && ( // Conditionally render '계' row
               <tr className="bg-gray-200 font-bold">
-                <td className="py-3 px-4 border-r">계</td>
+                <td className="py-3 px-4 border-r">합계</td>
                 <td className="py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r"></td> {/* Empty cell for "사비" in 계 row */}
                 {participants.map(p => (
