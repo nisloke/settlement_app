@@ -46,13 +46,19 @@ function App() {
   }
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8">
+    <div className="relative w-full p-4 sm:p-6 lg:p-8">
       {!session ? (
         <Login />
       ) : (
         <>
-          <header className="flex justify-between items-center text-center mb-8 gap-4">
-            <div className="flex-grow flex flex-col items-center">
+          <button 
+            onClick={handleLogout} 
+            className="absolute top-6 right-6 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded z-10"
+          >
+            로그아웃
+          </button>
+          <header className="text-center mb-8 mt-8">
+            <div className="flex flex-col items-center">
               <input
                 type="text"
                 value={title}
@@ -68,12 +74,6 @@ function App() {
                 className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md"
               />
             </div>
-            <button 
-              onClick={handleLogout} 
-              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-            >
-              로그아웃
-            </button>
           </header>
 
           <main>
