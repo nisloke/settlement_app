@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
+const ExpenseTable = ({ onSettlementIdChange, isGuest, title, setTitle, subtitle, setSubtitle }) => {
   const [participants, setParticipants] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [personalDeductionItems, setPersonalDeductionItems] = useState({});
@@ -52,6 +52,8 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
           setSettlementId(data.id);
           onSettlementIdChange(data.id);
           const parsedData = data.data;
+          setTitle(parsedData.title || 'Aloha RU 정산 시스템');
+          setSubtitle(parsedData.subtitle || 'Gently Split the Bill FAST');
           setParticipants(parsedData.participants || []);
           setExpenses(parsedData.expenses || []);
           setPersonalDeductionItems(parsedData.personalDeductionItems || {});
@@ -60,6 +62,8 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
           const initialParticipants = [{ id: 1, name: '참석자 1' }];
           const initialExpenses = [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }];
           const initialData = {
+            title,
+            subtitle,
             participants: initialParticipants,
             expenses: initialExpenses,
             personalDeductionItems: {}
@@ -91,6 +95,8 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
     if (settlementId === null || isGuest) return; // Don't save if guest
 
     const dataToSave = {
+      title,
+      subtitle,
       participants,
       expenses,
       personalDeductionItems,
@@ -117,7 +123,7 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
     return () => {
       debouncedSave.cancel();
     };
-  }, [participants, expenses, personalDeductionItems, settlementId]);
+  }, [title, subtitle, participants, expenses, personalDeductionItems, settlementId]);
 
   const addParticipant = () => {
     const newId = participants.length > 0 ? Math.max(...participants.map(p => p.id)) + 1 : 1;
@@ -356,18 +362,18 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
       </div>
 
       <div className="overflow-x-auto rounded-lg shadow-md">
-        <table className="w-full text-sm text-left text-gray-700 bg-white">
+        <table className="min-w-max w-full text-sm text-left text-gray-700 bg-white">
           <thead className="bg-gray-100 text-xs text-gray-700 uppercase">
             <tr>
-              <th scope="col" className="py-3 px-4 border-r">항목</th>
+              <th scope="col" className="py-3 px-4 border-r w-48">항목</th>
               <th scope="col" className="py-3 px-4 border-r">비용</th>
-              <th scope="col" className="py-3 px-4 border-r text-center">사비</th>
+              <th scope="col" className="py-3 px-4 border-r text-center whitespace-nowrap">사비</th>
               {participants.map(p => (
                 <th key={p.id} scope="col" className="py-3 px-4">
                   <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={isGuest} className="w-full bg-transparent text-center font-bold"/>
                 </th>
               ))}
-              <th scope="col" className="py-3 px-4 border-l text-center">전체</th>
+              <th scope="col" className="py-3 px-4 border-l text-center whitespace-nowrap">전체</th>
             </tr>
           </thead>
           <tbody>
@@ -378,7 +384,7 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
               return (
                 <tr key={expense.id} className="border-b hover:bg-gray-50">
                   <td className="py-1 px-2 font-medium border-r"><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={isGuest} className="w-full p-2"/></td>
-                  <td className="py-1 px-4 border-r text-right">
+                  <td className="py-1 px-4 border-r text-right whitespace-nowrap">
                     {editingCostId === expense.id && !isGuest ? (
                       <input
                         type="number"
@@ -437,10 +443,10 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
             </tr>
             <tr className="bg-gray-200 font-bold">
               <td className="py-3 px-4 border-r">합계</td>
-              <td className="py-3 px-4 border-r text-right">{totalExpensesSum.toLocaleString()} 원</td> {/* Display totalExpensesSum */}
+              <td className="py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td> {/* Display totalExpensesSum */}
               <td className="py-3 px-4 border-r text-right"></td> {/* Empty cell for "사비" in 합계 row */}
               {participants.map(p => (
-                <td key={p.id} className="py-3 px-4 text-gray-800 text-right">
+                <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
                   {Math.ceil(participantTotals[p.id] || 0).toLocaleString()} 원
                 </td>
               ))}
@@ -451,7 +457,7 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
             {Object.values(personalDeductionItems).map(deductionItem => ( // Use Object.values to map over the items
               <tr key={deductionItem.id} className="border-b hover:bg-gray-50">
                 <td className="py-1 px-2 font-medium border-r">{deductionItem.itemName}</td>
-                <td className="py-1 px-4 border-r text-right">{deductionItem.totalCost.toLocaleString()} 원</td>
+                <td className="py-1 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-center"></td> {/* Empty cell for "사비" column */}
                 {participants.map(p => (
                   <td key={p.id} className="py-3 px-4 text-center">
@@ -471,10 +477,10 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest }) => {
             {hasActivePersonalDeductions && ( // Conditionally render '계' row
               <tr className="bg-blue-100 font-extrabold text-blue-800">
                 <td className="py-3 px-4 border-r">계</td>
-                <td className="py-3 px-4 border-r text-right">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
+                <td className="py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r"></td> {/* Empty cell for "사비" in 계 row */}
                 {participants.map(p => (
-                  <td key={p.id} className="py-3 px-4 text-right">
+                  <td key={p.id} className="py-3 px-4 text-right whitespace-nowrap">
                     {Math.ceil(finalTotals[p.id] || 0).toLocaleString()} 원
                   </td>
                 ))}

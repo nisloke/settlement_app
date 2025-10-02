@@ -10,6 +10,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [title, setTitle] = useState('Aloha RU 정산 시스템');
+  const [subtitle, setSubtitle] = useState('Gently Split the Bill FAST');
 
   useEffect(() => {
     const getSession = async () => {
@@ -51,13 +53,21 @@ function App() {
         <>
           <header className="flex justify-between items-center text-center mb-8">
             <div></div> {/* Empty div for spacing */}
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-                Aloha RU 정산 시스템
-              </h1>
-              <p className="text-gray-500 mt-2">
-                Gently Split the Bill FAST
-              </p>
+            <div className="flex flex-col items-center">
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                readOnly={isGuest}
+                className="text-3xl sm:text-4xl font-bold text-gray-800 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md"
+              />
+              <input
+                type="text"
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
+                readOnly={isGuest}
+                className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md"
+              />
             </div>
             <button 
               onClick={handleLogout} 
@@ -68,12 +78,18 @@ function App() {
           </header>
 
           <main>
-            <ExpenseTable 
-              onSettlementIdChange={setSettlementId} 
-              isGuest={isGuest} 
-              key={session.user.id} 
-            />
-            {settlementId && <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />}
+            <div className="inline-block min-w-full">
+              <ExpenseTable 
+                onSettlementIdChange={setSettlementId} 
+                isGuest={isGuest} 
+                key={session.user.id}
+                title={title}
+                setTitle={setTitle}
+                subtitle={subtitle}
+                setSubtitle={setSubtitle}
+              />
+              {settlementId && <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />}
+            </div>
           </main>
         </>
       )}
