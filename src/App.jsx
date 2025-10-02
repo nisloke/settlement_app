@@ -46,14 +46,13 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="w-full p-4 sm:p-6 lg:p-8">
       {!session ? (
         <Login />
       ) : (
         <>
-          <header className="flex justify-between items-center text-center mb-8">
-            <div></div> {/* Empty div for spacing */}
-            <div className="flex flex-col items-center">
+          <header className="flex justify-between items-center text-center mb-8 gap-4">
+            <div className="flex-grow flex flex-col items-center">
               <input
                 type="text"
                 value={title}
@@ -78,18 +77,16 @@ function App() {
           </header>
 
           <main>
-            <div className="inline-block min-w-full">
-              <ExpenseTable 
-                onSettlementIdChange={setSettlementId} 
-                isGuest={isGuest} 
-                key={session.user.id}
-                title={title}
-                setTitle={setTitle}
-                subtitle={subtitle}
-                setSubtitle={setSubtitle}
-              />
-              {settlementId && <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />}
-            </div>
+            <ExpenseTable 
+              onSettlementIdChange={setSettlementId} 
+              isGuest={isGuest} 
+              key={session.user.id}
+              title={title}
+              setTitle={setTitle}
+              subtitle={subtitle}
+              setSubtitle={setSubtitle}
+            />
+            {settlementId && <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />}
           </main>
         </>
       )}

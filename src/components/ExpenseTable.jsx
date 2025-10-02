@@ -362,11 +362,11 @@ const ExpenseTable = ({ onSettlementIdChange, isGuest, title, setTitle, subtitle
       </div>
 
       <div className="overflow-x-auto rounded-lg shadow-md">
-        <table className="min-w-max w-full text-sm text-left text-gray-700 bg-white">
+        <table className="w-full text-sm text-left text-gray-700 bg-white">
           <thead className="bg-gray-100 text-xs text-gray-700 uppercase">
             <tr>
-              <th scope="col" className="py-3 px-4 border-r w-48">항목</th>
-              <th scope="col" className="py-3 px-4 border-r">비용</th>
+              <th scope="col" className="py-3 px-4 border-r text-center">항목</th>
+              <th scope="col" className="py-3 px-4 border-r text-center">비용</th>
               <th scope="col" className="py-3 px-4 border-r text-center whitespace-nowrap">사비</th>
               {participants.map(p => (
                 <th key={p.id} scope="col" className="py-3 px-4">
