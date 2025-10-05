@@ -1,93 +1,287 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import ExpenseTable from './components/ExpenseTable';
 import CommentSection from './components/CommentSection';
 import Login from './components/Login';
+import Sidebar from './components/Sidebar';
 
 function App() {
   const [session, setSession] = useState(null);
-  const [settlementId, setSettlementId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [title, setTitle] = useState('Aloha RU 정산 시스템');
-  const [subtitle, setSubtitle] = useState('Gently Split the Bill FAST');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Data states
+  const [settlementId, setSettlementId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [participants, setParticipants] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [personalDeductionItems, setPersonalDeductionItems] = useState({});
+  const [isArchived, setIsArchived] = useState(false);
+  const [settlementList, setSettlementList] = useState([]);
+
+  const getTargetUserId = useCallback((user) => {
+    const isGuestUser = user?.id === import.meta.env.VITE_GUEST_USER_ID;
+    return isGuestUser ? import.meta.env.VITE_OWNER_USER_ID : user?.id;
+  }, []);
+
+  const fetchSettlementList = useCallback(async (user) => {
+    const targetUserId = getTargetUserId(user);
+    if (!targetUserId) {
+      setSettlementList([]);
+      return;
+    }
+    const { data, error } = await supabase
+        .from('settlements')
+        .select('id, data, created_at, status')
+        .eq('user_id', targetUserId)
+        .not('status', 'eq', 'deleted')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching settlement list:', error);
+        setSettlementList([]);
+    } else {
+        setSettlementList(data || []);
+    }
+  }, [getTargetUserId]);
+
+  const loadSettlementData = useCallback(async (id) => {
+    if (!id) {
+      setSettlementId(null);
+      return;
+    }
+    const { data, error } = await supabase.from('settlements').select('id, data, status').eq('id', id).single();
+
+    if (error) {
+      console.error('Error fetching selected settlement:', error);
+      setSettlementId(null);
+    } else if (data) {
+      setSettlementId(data.id);
+      const parsedData = data.data || {};
+      setTitle(parsedData.title || '제목 없음');
+      setSubtitle(parsedData.subtitle || '');
+      setParticipants(parsedData.participants || []);
+      setExpenses(parsedData.expenses || []);
+      setPersonalDeductionItems(parsedData.personalDeductionItems || {});
+      setIsArchived(data.status === 'archived');
+    }
+  }, []);
+
+  const createNewSettlement = useCallback(async () => {
+    const user = session?.user;
+
+    if (!user || isGuest) {
+      return;
+    }
+
+    const targetUserId = getTargetUserId(user);
+    
+    const initialData = { title: '새로운 정산', subtitle: 'Gently Split the Bill FAST', participants: [{ id: 1, name: '참석자 1' }], expenses: [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }], personalDeductionItems: {} };
+    const { data: newSettlement, error: createError } = await supabase
+        .from('settlements')
+        .insert({ data: initialData, user_id: targetUserId, status: 'active' })
+        .select()
+        .single();
+
+    if (createError) {
+        console.error('Error creating new settlement:', createError);
+        alert('새로운 정산 시트를 만드는 데 실패했습니다.');
+    } else if (newSettlement) {
+        setSettlementList(list => [newSettlement, ...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        await loadSettlementData(newSettlement.id);
+        setIsSidebarOpen(false);
+    }
+  }, [session, getTargetUserId, isGuest, loadSettlementData, setSettlementList, setIsSidebarOpen]);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setIsGuest(session?.user?.id === import.meta.env.VITE_GUEST_USER_ID);
-      setIsOwner(session?.user?.id === import.meta.env.VITE_OWNER_USER_ID);
       setLoading(false);
-    };
+    });
 
-    getSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setIsGuest(session?.user?.id === import.meta.env.VITE_GUEST_USER_ID);
-        setIsOwner(session?.user?.id === import.meta.env.VITE_OWNER_USER_ID);
-      }
-    );
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (session) {
+        setLoading(true);
+        const user = session.user;
+        const isGuestUser = user.id === import.meta.env.VITE_GUEST_USER_ID;
+        setIsGuest(isGuestUser);
+        setIsOwner(user.id === import.meta.env.VITE_OWNER_USER_ID);
+
+        await fetchSettlementList(user);
+
+        const targetUserId = getTargetUserId(user);
+        const { data: activeSettlement } = await supabase
+          .from('settlements')
+          .select('id')
+          .eq('user_id', targetUserId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (activeSettlement) {
+          await loadSettlementData(activeSettlement.id);
+        } else {
+          const { data: latestSettlement } = await supabase
+            .from('settlements')
+            .select('id')
+            .eq('user_id', targetUserId)
+            .not('status', 'eq', 'deleted')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (latestSettlement) {
+            await loadSettlementData(latestSettlement.id);
+          } else if (!isGuestUser) {
+            await createNewSettlement();
+          }
+        }
+        setLoading(false);
+      } else {
+        setSettlementId(null);
+        setTitle('');
+        setSubtitle('');
+        setParticipants([]);
+        setExpenses([]);
+        setPersonalDeductionItems({});
+        setSettlementList([]);
+      }
+    };
+
+    loadUserData();
+  }, [session, fetchSettlementList, getTargetUserId, loadSettlementData, createNewSettlement]);
+
+  const handleLogout = async () => { await supabase.auth.signOut(); };
   
+  const handleSelectSettlement = (id) => { 
+    loadSettlementData(id); 
+    setIsSidebarOpen(false);
+  };
+
+  const handleCompleteSettlement = async () => {
+    if (!settlementId || isGuest || isArchived) return;
+
+    const dataToSave = { title, subtitle, participants, expenses, personalDeductionItems };
+    const { error: saveError } = await supabase.from('settlements').update({ data: dataToSave }).eq('id', settlementId);
+
+    if (saveError) {
+        alert('데이터 저장 중 오류가 발생하여 정산을 완료할 수 없습니다.');
+        return;
+    }
+
+    const { data: updatedSettlement, error: updateError } = await supabase.from('settlements').update({ status: 'archived' }).eq('id', settlementId).select().single();
+
+    if (updateError) {
+        alert('정산 완료 처리 중 오류가 발생했습니다.');
+        console.error('Error archiving settlement:', updateError);
+    } else {
+        alert('정산이 완료되어 보관되었습니다.');
+        setSettlementList(list => list.map(s => s.id === settlementId ? updatedSettlement : s).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        await loadSettlementData(settlementId);
+    }
+  };
+
+  const handleReactivateSettlement = async (idToReactivate) => {
+    if (window.confirm('보관된 정산을 다시 수정하시겠습니까?')) {
+      const { error: reactivateError } = await supabase
+        .from('settlements')
+        .update({ status: 'active' })
+        .eq('id', idToReactivate)
+        .select()
+        .single();
+
+      if (reactivateError) {
+        console.error('Error reactivating settlement:', reactivateError);
+        return alert('정산을 다시 활성화하는 중 오류가 발생했습니다.');
+      }
+
+      alert('정산이 다시 활성화되어 수정을 계속할 수 있습니다.');
+      await fetchSettlementList(session?.user);
+      await loadSettlementData(idToReactivate);
+    }
+  };
+
+  const handleDeleteSettlement = async (idToDelete) => {
+    if (window.confirm('정말로 이 정산 내역을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+        const { error } = await supabase.from('settlements').update({ status: 'deleted' }).eq('id', idToDelete);
+        if (error) {
+            console.error('Error (soft) deleting settlement:', error);
+            alert('삭제 중 오류가 발생했습니다.');
+        } else {
+            alert('정산 내역이 삭제되었습니다.');
+            setSettlementList(list => list.filter(s => s.id !== idToDelete));
+            if (settlementId === idToDelete) {
+                setSettlementId(null);
+            }
+        }
+    }
+  };
+
   if (loading) {
-    return null; // or a loading spinner
+    return <div className="w-full h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="relative w-full p-4 sm:p-6 lg:p-8">
+    <div className="bg-gray-100 min-h-screen">
       {!session ? (
-        <Login />
+        <div className="w-full"><Login /></div>
       ) : (
         <>
-          <button 
-            onClick={handleLogout} 
-            className="absolute top-6 right-6 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded z-10"
-          >
-            로그아웃
-          </button>
-          <header className="text-center mb-8 mt-8">
-            <div className="flex flex-col items-center">
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                readOnly={isGuest}
-                className="text-3xl sm:text-4xl font-bold text-gray-800 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md"
-              />
-              <input
-                type="text"
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                readOnly={isGuest}
-                className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md"
-              />
-            </div>
-          </header>
-
-          <main>
-            <ExpenseTable 
-              onSettlementIdChange={setSettlementId} 
-              isGuest={isGuest} 
-              key={session.user.id}
-              title={title}
-              setTitle={setTitle}
-              subtitle={subtitle}
-              setSubtitle={setSubtitle}
-            />
-            {settlementId && <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />}
-          </main>
+          <Sidebar 
+            settlements={settlementList}
+            onSelectSettlement={handleSelectSettlement} 
+            onDeleteSettlement={handleDeleteSettlement}
+            createNewSettlement={createNewSettlement}
+            currentSettlementId={settlementId}
+            isGuest={isGuest}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+          <div className="relative w-full p-4 sm:p-6 lg:p-8">
+             <button onClick={() => setIsSidebarOpen(true)} className="absolute top-6 left-6 bg-gray-200 hover:bg-gray-300 p-2 rounded-md z-10">
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <button onClick={handleLogout} className="absolute top-6 right-6 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded z-10">
+              로그아웃
+            </button>
+            <header className="text-center mb-8 mt-8">
+              <div className="flex flex-col items-center max-w-2xl mx-auto">
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} readOnly={isGuest || isArchived} className="text-3xl sm:text-4xl font-bold text-gray-800 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
+                <input type="text" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} readOnly={isGuest || isArchived} className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
+              </div>
+            </header>
+            <main>
+              {/* Reuse button is removed */}
+              {settlementId ? (
+                <>
+                  <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} />
+                  <CommentSection settlementId={settlementId} isGuest={isGuest || isArchived} isOwner={isOwner} />
+                </>
+              ) : (
+                <div className="text-center text-gray-500 mt-16">
+                  <p>정산 내역이 없습니다. 새로운 정산을 시작하세요.</p>
+                  <button onClick={createNewSettlement} disabled={isGuest} className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-400">
+                    새 정산 시작하기
+                  </button>
+                </div>
+              )}
+            </main>
+          </div>
         </>
       )}
     </div>
