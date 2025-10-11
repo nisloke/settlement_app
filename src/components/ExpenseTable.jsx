@@ -363,12 +363,12 @@ const ExpenseTable = ({
         <table className="w-full text-sm text-left text-gray-700">
           <thead className="bg-gray-100 text-xs text-gray-700 uppercase sticky top-0 z-10">
             <tr>
-              <th scope="col" className="py-3 px-4 border-r text-center sticky left-0 bg-gray-100">항목</th>
-              <th scope="col" className="py-3 px-4 border-r text-center w-40">비용</th>
+              <th scope="col" className="py-3 px-4 border-r text-center sticky left-0 bg-gray-100 whitespace-nowrap">항목</th>
+              <th scope="col" className="py-3 px-4 border-r text-center w-28">비용</th>
               <th scope="col" className="py-3 px-4 border-r text-center whitespace-nowrap">사비</th>
               <th scope="col" className="py-3 px-4 border-r text-center">N</th>
               {participantsToDisplay.map(p => (
-                <th key={p.id} scope="col" className="py-3 px-4">
+                <th key={p.id} scope="col" className="py-3 px-4 whitespace-nowrap">
                   <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={readOnly} className="w-full bg-transparent text-center font-bold read-only:bg-transparent read-only:ring-0"/>
                 </th>
               ))}
@@ -384,8 +384,8 @@ const ExpenseTable = ({
 
               return (
                 <tr key={expense.id} className={`border-b hover:bg-gray-50 ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : ''}`}>
-                  <td className={`sticky left-0 py-1 px-2 font-medium border-r ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full p-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
-                  <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">
+                  <td className={`sticky left-0 py-1 px-2 font-medium border-r whitespace-nowrap ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full p-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
+                  <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">
                     {editingCostId === expense.id && !readOnly ? (
                       <input
                         type="number"
@@ -453,7 +453,7 @@ const ExpenseTable = ({
             {!hasActivePersonalDeductions && (
               <tr className="bg-gray-200 font-bold">
                 <td className="sticky left-0 bg-gray-200 py-3 px-4 border-r">합계</td>
-                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td>
+                <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-right"></td>
                 <td className="border-r"></td>
                 {participantsToDisplay.map(p => (
@@ -467,8 +467,8 @@ const ExpenseTable = ({
 
             {Object.values(personalDeductionItems).map(deductionItem => (
               <tr key={deductionItem.id} className="border-b hover:bg-gray-50">
-                <td className="sticky left-0 bg-white hover:bg-gray-50 py-1 px-2 font-medium border-r">{deductionItem.itemName}</td>
-                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
+                <td className="sticky left-0 bg-white hover:bg-gray-50 py-1 px-2 font-medium border-r whitespace-nowrap">{deductionItem.itemName}</td>
+                <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-center"></td>
                 <td className="border-r"></td>
                 {participantsToDisplay.map(p => (
@@ -489,7 +489,7 @@ const ExpenseTable = ({
             {hasActivePersonalDeductions && (
               <tr className="bg-gray-200 font-bold">
                 <td className="sticky left-0 bg-gray-200 py-3 px-4 border-r">합계</td>
-                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
+                <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r"></td>
                 <td className="border-r"></td>
                 {participantsToDisplay.map(p => (
