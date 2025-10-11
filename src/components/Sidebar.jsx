@@ -55,18 +55,21 @@ const Sidebar = ({ settlements, onSelectSettlement, onDeleteSettlement, createNe
       <aside 
         className={`fixed top-0 left-0 w-72 bg-white p-4 h-screen overflow-y-auto z-40 shadow-xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 className="text-xl font-bold text-gray-800">정산 기록</h2>
+        <div className="flex justify-end items-center mb-2">
             <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
         </div>
 
-        <div className="mb-4">
-            <button onClick={handleCreate} disabled={isGuest} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-400">
-                + 새 정산 시작
-            </button>
-        </div>
+        {!isGuest && (
+          <div className="mb-4">
+              <button onClick={handleCreate} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                  + 새 정산 시작
+              </button>
+          </div>
+        )}
+
+        <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">정산 기록</h2>
         
         <div className="relative mb-4">
             <input 
