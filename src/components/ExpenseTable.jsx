@@ -32,6 +32,7 @@ const ExpenseTable = ({
   setPersonalDeductionItems,
   onCompleteSettlement,
   onReactivateSettlement,
+  showModal,
 }) => {
   const [editingCostId, setEditingCostId] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
@@ -90,9 +91,11 @@ const ExpenseTable = ({
   }, [title, subtitle, participants, expenses, personalDeductionItems, settlementId, isGuest, isArchived]);
 
   const handleCompleteSettlement = async () => {
-    if (window.confirm('정말로 정산을 완료하시겠습니까? 완료 후에는 수정할 수 없습니다.')) {
-      await onCompleteSettlement();
-    }
+    showModal({
+      title: '정산 완료',
+      content: '정산을 완료하고 보관하시겠습니까? 완료 후에도 \'수정\' 버튼을 통해 다시 활성화할 수 있습니다.',
+      onConfirm: () => onCompleteSettlement(),
+    });
   };
 
   const addParticipant = () => {
@@ -123,7 +126,10 @@ const ExpenseTable = ({
   };
 
   const removeParticipant = () => {
-    if (participants.length <= 1) return alert('참석자는 최소 1명 이상이어야 합니다.');
+    if (participants.length <= 1) {
+      showModal({ title: '알림', content: '참석자는 최소 1명 이상이어야 합니다.' });
+      return;
+    }
     const lastParticipant = participants[participants.length - 1];
     setParticipants(participants.slice(0, -1));
     
@@ -149,7 +155,10 @@ const ExpenseTable = ({
   };
 
   const removeExpense = () => {
-    if (expenses.length <= 1) return alert('비용 항목은 최소 1개 이상이어야 합니다.');
+    if (expenses.length <= 1) {
+      showModal({ title: '알림', content: '비용 항목은 최소 1개 이상이어야 합니다.' });
+      return;
+    }
     const expenseToRemove = expenses[expenses.length - 1];
     setExpenses(expenses.slice(0, -1));
 
@@ -159,7 +168,6 @@ const ExpenseTable = ({
       return newDeductions;
     });
   };
-
   const handleParticipantNameChange = (id, newName) => {
     setParticipants(participants.map(p => p.id === id ? { ...p, name: newName } : p));
   };
@@ -342,8 +350,12 @@ const ExpenseTable = ({
               정산 완료
             </button>
           )}
-          <button onClick={addParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
-          <button onClick={removeParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
+          {!readOnly && (
+            <>
+              <button onClick={addParticipant} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
+              <button onClick={removeParticipant} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -429,10 +441,12 @@ const ExpenseTable = ({
             })}
             <tr className="border-b">
               <td className="sticky left-0 bg-white py-2 px-4">
-                <div className="flex items-center gap-1">
-                  <button onClick={addExpense} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
-                  <button onClick={removeExpense} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
-                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={addExpense} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
+                    <button onClick={removeExpense} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+                  </div>
+                )}
               </td>
               <td colSpan={participants.length + 4}></td>
             </tr>

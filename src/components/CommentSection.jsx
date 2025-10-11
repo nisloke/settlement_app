@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../supabaseClient';
 
-const CommentSection = ({ settlementId, isGuest, isOwner }) => {
+const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
@@ -17,7 +17,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length + imageFiles.length > 10) {
-      alert('이미지는 최대 10장까지 첨부할 수 있습니다.');
+      showModal({ title: '알림', content: '이미지는 최대 10장까지 첨부할 수 있습니다.' });
       return;
     }
     setImageFiles(prevFiles => [...prevFiles, ...files]);
@@ -121,7 +121,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
       try {
         uploadedImageUrls = await Promise.all(uploadPromises);
       } catch (error) {
-        alert('일부 또는 전체 이미지 업로드에 실패했습니다.');
+        showModal({ title: '오류', content: '일부 또는 전체 이미지 업로드에 실패했습니다.' });
         return;
       }
     }
@@ -134,7 +134,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
 
     if (isGuest) {
       if (guestName.trim() === '' || guestPassword.trim() === '') {
-        alert('이름과 비밀번호를 모두 입력해주세요.');
+        showModal({ title: '알림', content: '이름과 비밀번호를 모두 입력해주세요.' });
         return;
       }
       // Assuming add_guest_comment RPC is updated to accept a jsonb image_url
@@ -187,7 +187,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
     if (isGuestComment) {
       const password = guestPasswords[commentId] || '';
       if (password.trim() === '') {
-        alert('비밀번호를 입력해주세요.');
+        showModal({ title: '알림', content: '비밀번호를 입력해주세요.' });
         return;
       }
 
@@ -198,13 +198,13 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
       });
 
       if (error) {
-        alert('댓글 수정 중 오류가 발생했습니다.');
+        showModal({ title: '오류', content: '댓글 수정 중 오류가 발생했습니다.' });
         console.error('Error calling update_guest_comment:', error);
       } else if (data === true) {
         setEditingCommentId(null);
         setEditingContent('');
       } else {
-        alert('비밀번호가 일치하지 않아 댓글을 수정할 수 없습니다.');
+        showModal({ title: '오류', content: '비밀번호가 일치하지 않아 댓글을 수정할 수 없습니다.' });
       }
     } else {
       // Logic for authenticated user's comment
@@ -214,7 +214,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
         .eq('id', commentId);
 
       if (error) {
-        alert('댓글 수정에 실패했습니다.');
+        showModal({ title: '오류', content: '댓글 수정에 실패했습니다.' });
         console.error('Error updating comment:', error);
       } else {
         setEditingCommentId(null);
@@ -230,7 +230,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
     if (isGuestComment && !isUserAuthenticated) { // Guest editing their own comment
       const password = guestPasswords[comment.id] || '';
       if (password.trim() === '') {
-        alert('비밀번호를 입력해주세요.');
+        showModal({ title: '알림', content: '비밀번호를 입력해주세요.' });
         return;
       }
 
@@ -240,7 +240,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
       });
 
       if (error) {
-        alert('비밀번호 검증 중 오류가 발생했습니다.');
+        showModal({ title: '오류', content: '비밀번호 검증 중 오류가 발생했습니다.' });
         return;
       }
 
@@ -248,7 +248,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
         setEditingCommentId(comment.id);
         setEditingContent(comment.content);
       } else {
-        alert('비밀번호가 일치하지 않습니다.');
+        showModal({ title: '오류', content: '비밀번호가 일치하지 않습니다.' });
       }
     } else { // Owner or own comment
       setEditingCommentId(comment.id);
@@ -273,7 +273,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
 
     if (error) {
       console.error('Error soft-deleting comment:', error);
-      alert('댓글 삭제 중 오류가 발생했습니다.');
+      showModal({ title: '오류', content: '댓글 삭제 중 오류가 발생했습니다.' });
     } else {
       setComments(comments.filter(c => c.id !== commentId));
     }
@@ -284,21 +284,25 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
     const isUserAuthenticated = !!currentUserId && !isGuest;
 
     if (isOwner) {
-      if (window.confirm('관리자 권한으로 댓글을 삭제하시겠습니까?')) {
-        await performDelete(comment.id);
-      }
+      showModal({
+        title: '댓글 삭제',
+        content: '관리자 권한으로 댓글을 삭제하시겠습니까?',
+        onConfirm: () => performDelete(comment.id),
+      });
       return;
     }
 
     if (isGuestComment) {
       if (isUserAuthenticated) {
-        if (window.confirm('인증된 사용자로 게스트의 댓글을 삭제하시겠습니까? (비밀번호 불필요)')) {
-          await performDelete(comment.id);
-        }
+        showModal({
+          title: '댓글 삭제',
+          content: '인증된 사용자로 게스트의 댓글을 삭제하시겠습니까? (비밀번호 불필요)',
+          onConfirm: () => performDelete(comment.id),
+        });
       } else { // Guest deleting their own comment
         const password = guestPasswords[comment.id] || '';
         if (password.trim() === '') {
-          alert('비밀번호를 입력해주세요.');
+          showModal({ title: '알림', content: '비밀번호를 입력해주세요.' });
           return;
         }
 
@@ -309,20 +313,22 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
 
         if (error) {
           console.error('Error in RPC soft_delete_guest_comment:', error);
-          alert('댓글 삭제 중 오류가 발생했습니다.');
+          showModal({ title: '오류', content: '댓글 삭제 중 오류가 발생했습니다.' });
         } else if (data === false) {
-          alert('비밀번호가 일치하지 않습니다.');
+          showModal({ title: '오류', content: '비밀번호가 일치하지 않습니다.' });
         } else {
           setComments(comments.filter(c => c.id !== comment.id));
         }
       }
     } else { // Registered user's comment
       if (currentUserId === comment.user_id) {
-        if (window.confirm('정말로 댓글을 삭제하시겠습니까?')) {
-          await performDelete(comment.id);
-        }
+        showModal({
+          title: '댓글 삭제',
+          content: '정말로 댓글을 삭제하시겠습니까?',
+          onConfirm: () => performDelete(comment.id),
+        });
       } else {
-        alert('자신이 작성한 댓글만 삭제할 수 있습니다.');
+        showModal({ title: '권한 없음', content: '자신이 작성한 댓글만 삭제할 수 있습니다.' });
       }
     }
   };

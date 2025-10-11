@@ -4,6 +4,7 @@ import ExpenseTable from './components/ExpenseTable';
 import CommentSection from './components/CommentSection';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
+import Modal from './components/Modal';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -11,6 +12,7 @@ function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', content: null, onConfirm: null });
 
   // Data states
   const [settlementId, setSettlementId] = useState(null);
@@ -69,7 +71,7 @@ function App() {
       setIsArchived(data.status === 'archived');
 
       if (data.status === 'active') {
-        alert("정산중입니다. 입금 금지!");
+        showModal({ title: '주의', content: '정산중입니다. 입금 금지!' });
       }
     }
   }, []);
@@ -176,6 +178,14 @@ function App() {
     loadUserData();
   }, [session, fetchSettlementList, getTargetUserId, loadSettlementData, createNewSettlement]);
 
+  const showModal = ({ title, content, onConfirm = null }) => {
+    setModalState({ isOpen: true, title, content, onConfirm });
+  };
+
+  const closeModal = () => {
+    setModalState({ isOpen: false, title: '', content: null, onConfirm: null });
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut(); };
   
   const handleSelectSettlement = (id) => { 
@@ -190,56 +200,65 @@ function App() {
     const { error: saveError } = await supabase.from('settlements').update({ data: dataToSave }).eq('id', settlementId);
 
     if (saveError) {
-        alert('데이터 저장 중 오류가 발생하여 정산을 완료할 수 없습니다.');
+        showModal({ title: '오류', content: '데이터 저장 중 오류가 발생하여 정산을 완료할 수 없습니다.' });
         return;
     }
 
     const { data: updatedSettlement, error: updateError } = await supabase.from('settlements').update({ status: 'archived' }).eq('id', settlementId).select().single();
 
     if (updateError) {
-        alert('정산 완료 처리 중 오류가 발생했습니다.');
+        showModal({ title: '오류', content: '정산 완료 처리 중 오류가 발생했습니다.' });
         console.error('Error archiving settlement:', updateError);
     } else {
-        alert('정산이 완료되어 보관되었습니다.');
+        showModal({ title: '완료', content: '정산이 완료되어 보관되었습니다.' });
         setSettlementList(list => list.map(s => s.id === settlementId ? updatedSettlement : s).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
         await loadSettlementData(settlementId);
     }
   };
 
   const handleReactivateSettlement = async (idToReactivate) => {
-    if (window.confirm('보관된 정산을 다시 수정하시겠습니까?')) {
-      const { error: reactivateError } = await supabase
-        .from('settlements')
-        .update({ status: 'active' })
-        .eq('id', idToReactivate)
-        .select()
-        .single();
+    showModal({
+      title: '정산 재활성화',
+      content: '보관된 정산을 다시 수정하시겠습니까?',
+      onConfirm: async () => {
+        const { error: reactivateError } = await supabase
+          .from('settlements')
+          .update({ status: 'active' })
+          .eq('id', idToReactivate)
+          .select()
+          .single();
 
-      if (reactivateError) {
-        console.error('Error reactivating settlement:', reactivateError);
-        return alert('정산을 다시 활성화하는 중 오류가 발생했습니다.');
+        if (reactivateError) {
+          console.error('Error reactivating settlement:', reactivateError);
+          showModal({ title: '오류', content: '정산을 다시 활성화하는 중 오류가 발생했습니다.' });
+          return;
+        }
+
+        showModal({ title: '성공', content: '정산이 다시 활성화되어 수정을 계속할 수 있습니다.' });
+        await fetchSettlementList(session?.user);
+        await loadSettlementData(idToReactivate);
       }
-
-      alert('정산이 다시 활성화되어 수정을 계속할 수 있습니다.');
-      await fetchSettlementList(session?.user);
-      await loadSettlementData(idToReactivate);
-    }
+    });
   };
 
   const handleDeleteSettlement = async (idToDelete) => {
-    if (window.confirm('정말로 이 정산 내역을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+    showModal({
+      title: '정산 내역 삭제',
+      content: '정말로 이 정산 내역을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      onConfirm: async () => {
         const { error } = await supabase.from('settlements').update({ status: 'deleted' }).eq('id', idToDelete);
         if (error) {
             console.error('Error (soft) deleting settlement:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+            showModal({ title: '오류', content: '삭제 중 오류가 발생했습니다.' });
         } else {
-            alert('정산 내역이 삭제되었습니다.');
+            showModal({ title: '삭제 완료', content: '정산 내역이 삭제되었습니다.' });
             setSettlementList(list => list.filter(s => s.id !== idToDelete));
             if (settlementId === idToDelete) {
                 setSettlementId(null);
             }
         }
-    }
+      }
+    });
   };
 
   if (loading) {
@@ -248,6 +267,14 @@ function App() {
 
   return (
     <div className="bg-gray-100 min-h-screen">
+      <Modal 
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        title={modalState.title}
+        onConfirm={modalState.onConfirm}
+      >
+        {modalState.content}
+      </Modal>
       {!session ? (
         <div className="w-full"><Login /></div>
       ) : (
@@ -283,8 +310,8 @@ function App() {
               {/* Reuse button is removed */}
               {settlementId ? (
                 <>
-                  <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} />
-                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />
+                  <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} showModal={showModal} />
+                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} showModal={showModal} />
                 </>
               ) : (
                 <div className="text-center text-gray-500 mt-16">
