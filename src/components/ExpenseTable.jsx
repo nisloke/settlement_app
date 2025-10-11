@@ -334,7 +334,7 @@ const ExpenseTable = ({
           </div>
           {isArchived && !isGuest && (
             <button onClick={() => onReactivateSettlement(settlementId)} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
-              수정하기 (재활성화)
+              수정
             </button>
           )}
           {!isArchived && (

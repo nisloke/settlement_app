@@ -262,19 +262,23 @@ function App() {
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
           />
-          <div className="relative w-full p-4 sm:p-6 lg:p-8">
-             <button onClick={() => setIsSidebarOpen(true)} className="absolute top-6 left-6 bg-gray-200 hover:bg-gray-300 p-2 rounded-md z-10">
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-            </button>
-            <button onClick={handleLogout} className="absolute top-6 right-6 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded z-10">
-              로그아웃
-            </button>
-            <header className="text-center mb-8 mt-8">
+          <div className="w-full p-4 sm:p-6 lg:p-8">
+            <header className="flex items-center justify-between w-full mb-6">
+              <button onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+              <button onClick={handleLogout} className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                로그아웃
+              </button>
+            </header>
+
+            <div className="text-center mb-8">
               <div className="flex flex-col items-center max-w-2xl mx-auto">
                 <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} readOnly={isGuest || isArchived} className="text-3xl sm:text-4xl font-bold text-gray-800 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
                 <input type="text" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} readOnly={isGuest || isArchived} className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
               </div>
-            </header>
+            </div>
+
             <main>
               {/* Reuse button is removed */}
               {settlementId ? (
