@@ -164,7 +164,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
           {
             ...commentData,
             user_id: user.id,
-            guest_name: user.email,
+            guest_name: '총무',
           }
         ])
         .select();
@@ -418,7 +418,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner }) => {
             return (
               <div key={comment.id} className="p-3 bg-gray-50 rounded-md">
                 <div className="flex justify-between items-start">
-                  <p className="text-sm font-semibold text-gray-600">{comment.guest_name || '사용자'}</p>
+                  <p className="text-sm font-semibold text-gray-600">{comment.user_id ? '총무' : (comment.guest_name || '사용자')}</p>
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-center gap-2">
                       {canEdit && !isEditing && (
