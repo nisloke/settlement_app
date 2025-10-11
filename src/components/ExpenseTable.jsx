@@ -35,6 +35,23 @@ const ExpenseTable = ({
 }) => {
   const [editingCostId, setEditingCostId] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
+  const [filteredParticipantId, setFilteredParticipantId] = useState('');
+
+  const expensesToDisplay = useMemo(() => {
+    if (!filteredParticipantId) {
+      return expenses;
+    }
+    const numericId = parseInt(filteredParticipantId, 10);
+    return expenses.filter(expense => expense.attendees[numericId]);
+  }, [expenses, filteredParticipantId]);
+
+  const participantsToDisplay = useMemo(() => {
+    if (!filteredParticipantId) {
+      return participants;
+    }
+    const numericId = parseInt(filteredParticipantId, 10);
+    return participants.filter(p => p.id === numericId);
+  }, [participants, filteredParticipantId]);
 
   // Auto-save data to Supabase with debouncing
   useEffect(() => {
@@ -291,34 +308,54 @@ const ExpenseTable = ({
 
   return (
     <>
-      <div className="flex justify-end items-center gap-2 mb-2">
-        <div className="text-sm text-gray-500 flex-grow">
-          {saveStatus === 'saving' && '저장 중...'}
-          {saveStatus === 'saved' && '저장됨'}
-          {saveStatus === 'error' && '저장 오류'}
+      <div className="flex justify-between items-center gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <label htmlFor="participant-filter" className="text-sm font-medium text-gray-700">참석자 필터:</label>
+          <select
+            id="participant-filter"
+            value={filteredParticipantId}
+            onChange={(e) => setFilteredParticipantId(e.target.value)}
+            className="p-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="">전체 보기</option>
+            {participants.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          {filteredParticipantId && (
+            <button onClick={() => setFilteredParticipantId('')} className="text-sm text-blue-600 hover:underline">필터 해제</button>
+          )}
         </div>
-        {isArchived && !isGuest && (
-          <button onClick={() => onReactivateSettlement(settlementId)} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
-            수정하기 (재활성화)
-          </button>
-        )}
-        {!isArchived && (
-          <button onClick={handleCompleteSettlement} disabled={readOnly} className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm disabled:bg-gray-400">
-            정산 완료
-          </button>
-        )}
-        <button onClick={addParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
-        <button onClick={removeParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-gray-500 flex-grow">
+            {saveStatus === 'saving' && '저장 중...'}
+            {saveStatus === 'saved' && '저장됨'}
+            {saveStatus === 'error' && '저장 오류'}
+          </div>
+          {isArchived && !isGuest && (
+            <button onClick={() => onReactivateSettlement(settlementId)} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
+              수정하기 (재활성화)
+            </button>
+          )}
+          {!isArchived && (
+            <button onClick={handleCompleteSettlement} disabled={readOnly} className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm disabled:bg-gray-400">
+              정산 완료
+            </button>
+          )}
+          <button onClick={addParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
+          <button onClick={removeParticipant} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg shadow-md bg-white">
+      <div className="overflow-x-auto rounded-lg shadow-md bg-white max-h-[75vh] overflow-y-auto relative">
         <table className="w-full text-sm text-left text-gray-700">
-          <thead className="bg-gray-100 text-xs text-gray-700 uppercase">
+          <thead className="bg-gray-100 text-xs text-gray-700 uppercase sticky top-0 z-10">
             <tr>
-              <th scope="col" className="py-3 px-4 border-r text-center">항목</th>
-              <th scope="col" className="py-3 px-4 border-r text-center">비용</th>
+              <th scope="col" className="py-3 px-4 border-r text-center sticky left-0 bg-gray-100">항목</th>
+              <th scope="col" className="py-3 px-4 border-r text-center w-40">비용</th>
               <th scope="col" className="py-3 px-4 border-r text-center whitespace-nowrap">사비</th>
-              {participants.map(p => (
+              <th scope="col" className="py-3 px-4 border-r text-center">N</th>
+              {participantsToDisplay.map(p => (
                 <th key={p.id} scope="col" className="py-3 px-4">
                   <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={readOnly} className="w-full bg-transparent text-center font-bold read-only:bg-transparent read-only:ring-0"/>
                 </th>
@@ -327,25 +364,27 @@ const ExpenseTable = ({
             </tr>
           </thead>
           <tbody>
-            {expenses.map(expense => {
+            {expensesToDisplay.map(expense => {
               const currentAttendees = Object.values(expense.attendees);
               const areAllChecked = currentAttendees.length > 0 && currentAttendees.every(checked => checked);
+              const n = currentAttendees.filter(Boolean).length;
+              const costPerPerson = n > 0 ? Math.floor(expense.totalCost / n) : 0;
 
               return (
-                <tr key={expense.id} className="border-b hover:bg-gray-50">
-                  <td className="py-1 px-2 font-medium border-r"><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full p-2 read-only:bg-transparent read-only:ring-0"/></td>
-                  <td className="py-1 px-4 border-r text-right whitespace-nowrap">
+                <tr key={expense.id} className={`border-b hover:bg-gray-50 ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : ''}`}>
+                  <td className={`sticky left-0 py-1 px-2 font-medium border-r ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full p-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
+                  <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">
                     {editingCostId === expense.id && !readOnly ? (
                       <input
                         type="number"
                         value={expense.totalCost}
                         onChange={(e) => handleCostChange(expense.id, e.target.value)}
                         onBlur={() => setEditingCostId(null)}
-                        className="w-full p-4 text-right"
+                        className="w-full h-full bg-transparent text-right focus:outline-none p-0"
                         autoFocus
                       />
                     ) : (
-                      <span onClick={() => !readOnly && setEditingCostId(expense.id)} className={`block w-full p-4 ${!readOnly && 'cursor-pointer'}`}>
+                      <span onClick={() => !readOnly && setEditingCostId(expense.id)} className={`block w-full h-full flex items-center justify-end ${!readOnly && 'cursor-pointer'}`}>
                         {expense.totalCost.toLocaleString()} 원
                       </span>
                     )}
@@ -359,7 +398,13 @@ const ExpenseTable = ({
                       disabled={readOnly}
                     />
                   </td>
-                  {participants.map(p => (
+                  <td
+                    className="py-3 px-4 border-r text-center"
+                    title={`1인당: ${costPerPerson.toLocaleString()} 원`}
+                  >
+                    {n}
+                  </td>
+                  {participantsToDisplay.map(p => (
                     <td key={p.id} className="py-3 px-4 text-center">
                       <input
                         type="checkbox"
@@ -383,20 +428,21 @@ const ExpenseTable = ({
               );
             })}
             <tr className="border-b">
-              <td className="py-2 px-4">
+              <td className="sticky left-0 bg-white py-2 px-4">
                 <div className="flex items-center gap-1">
                   <button onClick={addExpense} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">+</button>
                   <button onClick={removeExpense} disabled={readOnly} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400">-</button>
                 </div>
               </td>
-              <td colSpan={participants.length + 3}></td>
+              <td colSpan={participants.length + 4}></td>
             </tr>
             {!hasActivePersonalDeductions && (
               <tr className="bg-gray-200 font-bold">
-                <td className="py-3 px-4 border-r">합계</td>
-                <td className="py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td>
+                <td className="sticky left-0 bg-gray-200 py-3 px-4 border-r">합계</td>
+                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{totalExpensesSum.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-right"></td>
-                {participants.map(p => (
+                <td className="border-r"></td>
+                {participantsToDisplay.map(p => (
                   <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
                     {Math.ceil(participantTotals[p.id] || 0).toLocaleString()} 원
                   </td>
@@ -407,10 +453,11 @@ const ExpenseTable = ({
 
             {Object.values(personalDeductionItems).map(deductionItem => (
               <tr key={deductionItem.id} className="border-b hover:bg-gray-50">
-                <td className="py-1 px-2 font-medium border-r">{deductionItem.itemName}</td>
-                <td className="py-1 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
+                <td className="sticky left-0 bg-white hover:bg-gray-50 py-1 px-2 font-medium border-r">{deductionItem.itemName}</td>
+                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-center"></td>
-                {participants.map(p => (
+                <td className="border-r"></td>
+                {participantsToDisplay.map(p => (
                   <td key={p.id} className="py-3 px-4 text-center">
                     <input
                       type="checkbox"
@@ -427,10 +474,11 @@ const ExpenseTable = ({
 
             {hasActivePersonalDeductions && (
               <tr className="bg-gray-200 font-bold">
-                <td className="py-3 px-4 border-r">합계</td>
-                <td className="py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
+                <td className="sticky left-0 bg-gray-200 py-3 px-4 border-r">합계</td>
+                <td className="w-40 py-3 px-4 border-r text-right whitespace-nowrap">{Math.ceil(finalGrandTotal).toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r"></td>
-                {participants.map(p => (
+                <td className="border-r"></td>
+                {participantsToDisplay.map(p => (
                   <td key={p.id} className="py-3 px-4 text-gray-800 text-right whitespace-nowrap">
                     {Math.ceil(finalTotals[p.id] || 0).toLocaleString()} 원
                   </td>

@@ -67,6 +67,10 @@ function App() {
       setExpenses(parsedData.expenses || []);
       setPersonalDeductionItems(parsedData.personalDeductionItems || {});
       setIsArchived(data.status === 'archived');
+
+      if (data.status === 'active') {
+        alert("정산중입니다. 입금 금지!");
+      }
     }
   }, []);
 
@@ -124,14 +128,20 @@ function App() {
         await fetchSettlementList(user);
 
         const targetUserId = getTargetUserId(user);
-        const { data: activeSettlement } = await supabase
+        const { data: activeSettlements, error: activeError } = await supabase
           .from('settlements')
           .select('id')
           .eq('user_id', targetUserId)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
+
+        const activeSettlement = activeSettlements ? activeSettlements[0] : null;
+        
+        if (activeError) {
+          console.error("Error fetching active settlement:", activeError);
+        }
+
         
         if (activeSettlement) {
           await loadSettlementData(activeSettlement.id);
@@ -270,7 +280,7 @@ function App() {
               {settlementId ? (
                 <>
                   <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} />
-                  <CommentSection settlementId={settlementId} isGuest={isGuest || isArchived} isOwner={isOwner} />
+                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} />
                 </>
               ) : (
                 <div className="text-center text-gray-500 mt-16">
