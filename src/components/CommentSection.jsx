@@ -52,7 +52,8 @@ const Comment = ({ comment, level, commentProps }) => {
     setReplyContent,
     setReplyImageFiles,
     setModalImageUrl,
-    handleFileChange
+    handleFileChange,
+    handleFocus
   } = commentProps;
 
   if (!isCommentVisible(comment)) {
@@ -111,7 +112,7 @@ const Comment = ({ comment, level, commentProps }) => {
 
       {isEditing ? (
         <div className="mt-2">
-          <textarea value={editingContent} onChange={(e) => setEditingContent(e.target.value)} className="w-full p-2 border rounded" autoFocus />
+          <textarea value={editingContent} onChange={(e) => setEditingContent(e.target.value)} className="w-full p-2 border rounded" onFocus={handleFocus} />
           <div className="flex justify-end gap-2 mt-2">
             <button onClick={cancelEditing} className="text-xs">취소</button>
             <button onClick={() => handleUpdateComment(comment.id)} className="text-xs font-bold text-blue-600" disabled={canGuestManage && !guestPasswords[comment.id]}>저장</button>
@@ -136,7 +137,7 @@ const Comment = ({ comment, level, commentProps }) => {
 
       {isReplying && (
         <div className="mt-4 ml-4 p-4 border-l-2">
-          <textarea className="w-full p-2 border rounded" rows="2" placeholder={`${comment.guest_name || '사용자'}에게 답글...`} value={replyContent} onChange={(e) => setReplyContent(e.target.value)} autoFocus />
+          <textarea className="w-full p-2 border rounded" rows="2" placeholder={`${comment.guest_name || '사용자'}에게 답글...`} value={replyContent} onChange={(e) => setReplyContent(e.target.value)} onFocus={handleFocus} />
           <div className="flex items-center justify-between mt-2">
             <div>
               <input type="file" id={`reply-image-upload-${comment.id}`} accept="image/*" multiple onChange={(e) => handleFileChange(e, true)} className="hidden" />
@@ -381,6 +382,15 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     setGuestPasswords(prev => ({ ...prev, [commentId]: password }));
   };
 
+  const handleFocus = (e) => {
+    setTimeout(() => {
+      e.target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 300);
+  };
+
   const commentProps = {
     isOwner,
     currentUserId,
@@ -402,7 +412,8 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     setReplyContent,
     setReplyImageFiles,
     setModalImageUrl,
-    handleFileChange
+    handleFileChange,
+    handleFocus
   };
 
   return (
@@ -416,7 +427,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
           </div>
         )}
         <div className="flex items-stretch gap-2">
-          <textarea className="flex-grow p-2 border rounded text-xs" rows="3" placeholder="댓글을 작성하세요..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
+          <textarea className="flex-grow p-2 border rounded text-xs" rows="3" placeholder="댓글을 작성하세요..." value={newComment} onChange={(e) => setNewComment(e.target.value)} onFocus={handleFocus} />
           <div className="flex flex-col gap-2">
             <input type="file" id="comment-image-upload" accept="image/*" multiple onChange={(e) => handleFileChange(e, false)} className="hidden" />
             <label htmlFor="comment-image-upload" className="cursor-pointer px-4 py-2 bg-gray-200 rounded text-center text-xs">사진 추가</label>

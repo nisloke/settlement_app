@@ -384,7 +384,7 @@ const ExpenseTable = ({
 
               return (
                 <tr key={expense.id} className={`border-b hover:bg-gray-50 ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : ''}`}>
-                  <td className={`sticky left-0 py-1 px-2 font-medium border-r whitespace-nowrap ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full p-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
+                  <td className={`sticky left-0 py-1 px-2 font-medium border-r whitespace-nowrap ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full py-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
                   <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">
                     {editingCostId === expense.id && !readOnly ? (
                       <input

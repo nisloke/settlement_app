@@ -90,6 +90,14 @@ const Sidebar = ({
           </>
         )}
 
+        {isGuest && (
+            <div className="mb-4">
+                <button onClick={onLogout} className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm">
+                    로그아웃
+                </button>
+            </div>
+        )}
+
         <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">정산 기록</h2>
         
         <div className="relative mb-4">
