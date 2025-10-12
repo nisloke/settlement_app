@@ -55,9 +55,8 @@ const Comment = ({ comment, level, commentProps }) => {
     handleFileChange
   } = commentProps;
 
-  if (!isCommentVisible(comment)) {
-    return null;
-  }
+  const editInputRef = React.useRef(null);
+  const replyInputRef = React.useRef(null);
 
   const isGuestComment = !!comment.password_hash;
   const canOwnerManage = isOwner;
@@ -67,6 +66,22 @@ const Comment = ({ comment, level, commentProps }) => {
   const canEdit = canOwnerManage || canUserManageOwnComment || canGuestManage;
   const isEditing = editingCommentId === comment.id;
   const isReplying = replyingTo === comment.id;
+
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (isReplying && replyInputRef.current) {
+      replyInputRef.current.focus();
+    }
+  }, [isReplying]);
+
+  if (!isCommentVisible(comment)) {
+    return null;
+  }
 
   const indentationClasses = ['ml-0', 'ml-4', 'ml-8', 'ml-12', 'ml-16', 'ml-20'];
   const indentationClass = indentationClasses[level] || indentationClasses[indentationClasses.length - 1];
@@ -111,7 +126,7 @@ const Comment = ({ comment, level, commentProps }) => {
 
       {isEditing ? (
         <div className="mt-2">
-          <textarea value={editingContent} onChange={(e) => setEditingContent(e.target.value)} className="w-full p-2 border rounded" autoFocus />
+          <textarea ref={editInputRef} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} className="w-full p-2 border rounded" />
           <div className="flex justify-end gap-2 mt-2">
             <button onClick={cancelEditing} className="text-xs">취소</button>
             <button onClick={() => handleUpdateComment(comment.id)} className="text-xs font-bold text-blue-600" disabled={canGuestManage && !guestPasswords[comment.id]}>저장</button>
@@ -136,7 +151,7 @@ const Comment = ({ comment, level, commentProps }) => {
 
       {isReplying && (
         <div className="mt-4 ml-4 p-4 border-l-2">
-          <textarea className="w-full p-2 border rounded" rows="2" placeholder={`${comment.guest_name || '사용자'}에게 답글...`} value={replyContent} onChange={(e) => setReplyContent(e.target.value)} autoFocus />
+          <textarea ref={replyInputRef} className="w-full p-2 border rounded" rows="2" placeholder={`${comment.guest_name || '사용자'}에게 답글...`} value={replyContent} onChange={(e) => setReplyContent(e.target.value)} />
           <div className="flex items-center justify-between mt-2">
             <div>
               <input type="file" id={`reply-image-upload-${comment.id}`} accept="image/*" multiple onChange={(e) => handleFileChange(e, true)} className="hidden" />
