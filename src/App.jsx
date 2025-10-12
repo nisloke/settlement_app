@@ -7,7 +7,6 @@ import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
 
 function App() {
-  const appRef = useRef(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -118,25 +117,6 @@ function App() {
 
     return () => {
       authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const appElement = appRef.current;
-    if (!appElement) return;
-
-    const setAppHeight = () => {
-      // Set height based on the visual viewport to handle mobile keyboards correctly
-      appElement.style.height = `${window.innerHeight}px`;
-    };
-
-    setAppHeight();
-
-    // Adjust height on resize (e.g., orientation change)
-    window.addEventListener('resize', setAppHeight);
-
-    return () => {
-      window.removeEventListener('resize', setAppHeight);
     };
   }, []);
 
@@ -346,7 +326,7 @@ function App() {
   }
 
   return (
-    <div ref={appRef} className="bg-gray-100 overflow-y-auto">
+    <div className="bg-gray-100 min-h-screen">
       <Modal 
         isOpen={modalState.isOpen}
         onClose={closeModal}
