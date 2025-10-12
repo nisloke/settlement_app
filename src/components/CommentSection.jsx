@@ -94,32 +94,34 @@ const Comment = ({ comment, level, commentProps }) => {
   return (
     <div className={`${indentationClass} p-3 bg-gray-50 rounded-md`}>
       <div className="flex justify-between items-start">
-        <p className="text-sm font-semibold text-gray-600">{comment.guest_name || '사용자'}</p>
-        <div className="flex items-center gap-2">
-          {!isEditing && <button onClick={() => setReplyingTo(comment.id)} className="text-xs text-gray-600 hover:text-blue-700">답글</button>}
-          {canEdit && !isEditing && <button onClick={() => startEditing(comment)} className="text-xs text-blue-500 hover:text-blue-700" disabled={canGuestManage && !guestPasswords[comment.id]}>수정</button>}
-          {canDelete && !isEditing && <button onClick={() => handleDeleteComment(comment)} className="text-xs text-red-500 hover:text-red-700" disabled={canGuestManage && !guestPasswords[comment.id]}>삭제</button>}
+        <p className="text-xs font-semibold text-gray-600">{comment.user_id ? (comment.username || '이름없음') : (comment.guest_name || '게스트')}</p>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            {!isEditing && <button onClick={() => setReplyingTo(comment.id)} className="text-xs text-gray-600 hover:text-blue-700">답글</button>}
+            {canEdit && !isEditing && <button onClick={() => startEditing(comment)} className="text-xs text-blue-500 hover:text-blue-700" disabled={canGuestManage && !guestPasswords[comment.id]}>수정</button>}
+            {canDelete && !isEditing && <button onClick={() => handleDeleteComment(comment)} className="text-xs text-red-500 hover:text-red-700" disabled={canGuestManage && !guestPasswords[comment.id]}>삭제</button>}
+          </div>
+          {canGuestManage && !isEditing && (
+            <div className="mt-1">
+              <input type="password" placeholder="비밀번호" value={guestPasswords[comment.id] || ''} onChange={(e) => handlePasswordChange(comment.id, e.target.value)} className="p-1 text-xs border rounded w-28" />
+            </div>
+          )}
         </div>
       </div>
-      {canGuestManage && !isEditing && (
-        <div className="mt-1">
-          <input type="password" placeholder="비밀번호" value={guestPasswords[comment.id] || ''} onChange={(e) => handlePasswordChange(comment.id, e.target.value)} className="p-1 text-xs border rounded w-28" />
-        </div>
-      )}
 
       {isEditing ? (
         <div className="mt-2">
           <textarea value={editingContent} onChange={(e) => setEditingContent(e.target.value)} className="w-full p-2 border rounded" autoFocus />
           <div className="flex justify-end gap-2 mt-2">
-            <button onClick={cancelEditing} className="text-sm">취소</button>
-            <button onClick={() => handleUpdateComment(comment.id)} className="text-sm font-bold text-blue-600" disabled={canGuestManage && !guestPasswords[comment.id]}>저장</button>
+            <button onClick={cancelEditing} className="text-xs">취소</button>
+            <button onClick={() => handleUpdateComment(comment.id)} className="text-xs font-bold text-blue-600" disabled={canGuestManage && !guestPasswords[comment.id]}>저장</button>
           </div>
         </div>
       ) : (
         <>
-          <p className="text-gray-800 mt-1 whitespace-pre-wrap">{comment.content}</p>
+          <p className="text-gray-800 mt-1 whitespace-pre-wrap text-xs">{comment.content}</p>
           {comment.image_url && comment.image_url.length > 0 && (
-            <div className="mt-2 grid grid-cols-5 gap-2">
+            <div className="mt-2 grid grid-cols-5 gap-2 max-w-xl">
               {comment.image_url.map((url, index) => (
                 <div key={index} className="relative aspect-square cursor-pointer" onClick={() => setModalImageUrl(url)}>
                   <img src={url} alt={`Attachment ${index + 1}`} className="w-full h-full object-cover rounded-md" />
@@ -138,15 +140,15 @@ const Comment = ({ comment, level, commentProps }) => {
           <div className="flex items-center justify-between mt-2">
             <div>
               <input type="file" id={`reply-image-upload-${comment.id}`} accept="image/*" multiple onChange={(e) => handleFileChange(e, true)} className="hidden" />
-              <label htmlFor={`reply-image-upload-${comment.id}`} className="cursor-pointer text-sm text-gray-600">사진 추가</label>
+              <label htmlFor={`reply-image-upload-${comment.id}`} className="cursor-pointer text-xs text-gray-600">사진 추가</label>
             </div>
             <div className="flex gap-2">
-              <button onClick={cancelReply} className="text-sm">취소</button>
-              <button onClick={() => handlePostComment(comment.id)} className="text-sm font-bold text-blue-600" disabled={!replyContent.trim() && replyImageFiles.length === 0}>답글 작성</button>
+              <button onClick={cancelReply} className="text-xs">취소</button>
+              <button onClick={() => handlePostComment(comment.id)} className="text-xs font-bold text-blue-600" disabled={!replyContent.trim() && replyImageFiles.length === 0}>답글 작성</button>
             </div>
           </div>
           {replyImageFiles.length > 0 && (
-            <div className="mt-2 grid grid-cols-5 gap-2">
+            <div className="mt-2 grid grid-cols-5 gap-2 max-w-xl">
               {replyImageFiles.map((file, index) => (
                 <div key={index} className="relative aspect-square">
                   <img src={URL.createObjectURL(file)} alt={`Reply Preview ${index}`} className="w-full h-full object-cover rounded" />
@@ -167,7 +169,7 @@ const Comment = ({ comment, level, commentProps }) => {
   );
 };
 
-const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
+const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
@@ -185,7 +187,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
   const fetchComments = useCallback(async () => {
     if (!settlementId) return;
     const { data, error } = await supabase
-      .from('comments')
+      .from('comments_with_profiles')
       .select('*')
       .eq('settlement_id', settlementId)
       .order('created_at', { ascending: true });
@@ -216,7 +218,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [settlementId, fetchComments]);
+  }, [settlementId, fetchComments, refreshKey]);
 
   const handleFileChange = (e, isReply = false) => {
     const files = Array.from(e.target.files);
@@ -270,8 +272,17 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
         showModal({ title: '알림', content: '이름과 비밀번호를 모두 입력해주세요.' });
         return;
       }
-      const { error } = await supabase.rpc('add_guest_comment', { settlement_id_arg: settlementId, guest_name_arg: guestName, password_arg: guestPassword, content_arg: content, image_url_arg: uploadedImageUrls, parent_comment_id_arg: parentId });
+      const { error } = await supabase.rpc('add_guest_comment', {
+        settlement_id_arg: settlementId,
+        guest_name_arg: guestName,
+        password_arg: guestPassword,
+        content_arg: content,
+        image_url_arg: uploadedImageUrls,
+        parent_comment_id_arg: parentId,
+      });
+
       if (error) {
+        console.error('Guest comment RPC error:', error);
         showModal({ title: '오류', content: '댓글 작성에 실패했습니다.' });
       } else {
         if (isReply) {
@@ -286,7 +297,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { error } = await supabase.from('comments').insert([{ ...commentData, user_id: user.id, guest_name: '총무' }]);
+      const { error } = await supabase.from('comments').insert([{ ...commentData, user_id: user.id }]);
       if (error) {
         showModal({ title: '오류', content: '댓글 작성에 실패했습니다.' });
       } else {
@@ -400,20 +411,20 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal }) => {
       <div className="mb-4">
         {isGuest && (
           <div className="flex gap-4 mb-2">
-            <input type="text" placeholder="이름" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="w-1/6 p-2 border rounded" />
-            <input type="password" placeholder="비밀번호" value={guestPassword} onChange={(e) => setGuestPassword(e.target.value)} className="w-1/6 p-2 border rounded" />
+            <input type="text" placeholder="이름" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="w-1/6 p-2 border rounded text-xs" />
+            <input type="password" placeholder="비밀번호" value={guestPassword} onChange={(e) => setGuestPassword(e.target.value)} className="w-1/6 p-2 border rounded text-xs" />
           </div>
         )}
         <div className="flex items-stretch gap-2">
-          <textarea className="flex-grow p-2 border rounded" rows="3" placeholder="댓글을 작성하세요..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
+          <textarea className="flex-grow p-2 border rounded text-xs" rows="3" placeholder="댓글을 작성하세요..." value={newComment} onChange={(e) => setNewComment(e.target.value)} />
           <div className="flex flex-col gap-2">
             <input type="file" id="comment-image-upload" accept="image/*" multiple onChange={(e) => handleFileChange(e, false)} className="hidden" />
-            <label htmlFor="comment-image-upload" className="cursor-pointer px-4 py-2 bg-gray-200 rounded text-center">사진 추가</label>
-            <button className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400" onClick={() => handlePostComment(null)} disabled={!newComment.trim() && imageFiles.length === 0}>작성</button>
+            <label htmlFor="comment-image-upload" className="cursor-pointer px-4 py-2 bg-gray-200 rounded text-center text-xs">사진 추가</label>
+            <button className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400 text-xs" onClick={() => handlePostComment(null)} disabled={!newComment.trim() && imageFiles.length === 0}>작성</button>
           </div>
         </div>
         {imageFiles.length > 0 && (
-          <div className="mt-2 grid grid-cols-5 gap-2">
+          <div className="mt-2 grid grid-cols-5 gap-2 max-w-xl">
             {imageFiles.map((file, index) => (
               <div key={index} className="relative aspect-square">
                 <img src={URL.createObjectURL(file)} alt={`Preview ${index}`} className="w-full h-full object-cover rounded" />

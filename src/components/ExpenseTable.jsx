@@ -318,12 +318,12 @@ const ExpenseTable = ({
     <>
       <div className="flex justify-between items-center gap-2 mb-2">
         <div className="flex items-center gap-2">
-          <label htmlFor="participant-filter" className="text-sm font-medium text-gray-700">참석자 필터:</label>
+          <label htmlFor="participant-filter" className="text-xs font-medium text-gray-700">참석자 필터:</label>
           <select
             id="participant-filter"
             value={filteredParticipantId}
             onChange={(e) => setFilteredParticipantId(e.target.value)}
-            className="p-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="p-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
           >
             <option value="">전체 보기</option>
             {participants.map(p => (
@@ -331,22 +331,22 @@ const ExpenseTable = ({
             ))}
           </select>
           {filteredParticipantId && (
-            <button onClick={() => setFilteredParticipantId('')} className="text-sm text-blue-600 hover:underline">필터 해제</button>
+            <button onClick={() => setFilteredParticipantId('')} className="text-xs text-blue-600 hover:underline">필터 해제</button>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-sm text-gray-500 flex-grow">
+          <div className="text-xs text-gray-500 flex-grow">
             {saveStatus === 'saving' && '저장 중...'}
             {saveStatus === 'saved' && '저장됨'}
             {saveStatus === 'error' && '저장 오류'}
           </div>
           {isArchived && !isGuest && (
-            <button onClick={() => onReactivateSettlement(settlementId)} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
+            <button onClick={() => onReactivateSettlement(settlementId)} className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-xs">
               수정
             </button>
           )}
           {!isArchived && (
-            <button onClick={handleCompleteSettlement} disabled={readOnly} className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm disabled:bg-gray-400">
+            <button onClick={handleCompleteSettlement} disabled={readOnly} className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs disabled:bg-gray-400">
               정산 완료
             </button>
           )}
@@ -360,7 +360,7 @@ const ExpenseTable = ({
       </div>
 
       <div className="overflow-x-auto rounded-lg shadow-md bg-white max-h-[75vh] overflow-y-auto relative">
-        <table className="w-full text-sm text-left text-gray-700">
+        <table className="w-full text-xs text-left text-gray-700">
           <thead className="bg-gray-100 text-xs text-gray-700 uppercase sticky top-0 z-10">
             <tr>
               <th scope="col" className="py-3 px-4 border-r text-center sticky left-0 bg-gray-100 whitespace-nowrap">항목</th>

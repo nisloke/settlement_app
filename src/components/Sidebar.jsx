@@ -1,6 +1,17 @@
 import React, { useState, useMemo } from 'react';
 
-const Sidebar = ({ settlements, onSelectSettlement, onDeleteSettlement, createNewSettlement, currentSettlementId, isGuest, isOpen, onClose }) => {
+const Sidebar = ({ 
+  settlements, 
+  onSelectSettlement, 
+  onDeleteSettlement, 
+  createNewSettlement, 
+  currentSettlementId, 
+  isGuest, 
+  isOpen, 
+  onClose, 
+  onOpenProfileModal,
+  onLogout
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('latest'); // latest, oldest, title
 
@@ -62,11 +73,21 @@ const Sidebar = ({ settlements, onSelectSettlement, onDeleteSettlement, createNe
         </div>
 
         {!isGuest && (
-          <div className="mb-4">
-              <button onClick={handleCreate} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                  + 새 정산 시작
+          <>
+            <div className="flex gap-2 mb-4">
+              <button onClick={onOpenProfileModal} className="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded text-sm">
+                이름 변경
               </button>
-          </div>
+              <button onClick={onLogout} className="w-1/2 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm">
+                로그아웃
+              </button>
+            </div>
+            <div className="mb-4">
+                <button onClick={handleCreate} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    + 새 정산 시작
+                </button>
+            </div>
+          </>
         )}
 
         <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">정산 기록</h2>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import ExpenseTable from './components/ExpenseTable';
 import CommentSection from './components/CommentSection';
@@ -13,6 +13,8 @@ function App() {
   const [isOwner, setIsOwner] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', content: null, onConfirm: null });
+  const [commentRefreshKey, setCommentRefreshKey] = useState(0);
+  const profileUsernameRef = useRef('');
 
   // Data states
   const [settlementId, setSettlementId] = useState(null);
@@ -193,6 +195,64 @@ function App() {
     setIsSidebarOpen(false);
   };
 
+  const handleUpdateProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const newUsername = profileUsernameRef.current;
+
+    if (newUsername.length < 2) {
+      showModal({ title: '알림', content: '사용자 이름은 2자 이상이어야 합니다.' });
+      return;
+    }
+
+    const { error } = await supabase.from('profiles').update({ username: newUsername }).eq('id', user.id);
+    
+    closeModal();
+
+    setTimeout(() => {
+      if (error) {
+        showModal({ title: '오류', content: `프로필 업데이트 실패: ${error.message}` });
+      } else {
+        showModal({ title: '성공', content: '사용자 이름이 성공적으로 저장되었습니다.' });
+        setCommentRefreshKey(k => k + 1); // Trigger comment refresh
+      }
+    }, 200);
+  };
+
+  const handleOpenProfileModal = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      showModal({ title: '오류', content: '프로필 정보를 불러오는 데 실패했습니다.' });
+      return;
+    }
+
+    profileUsernameRef.current = profile.username || '';
+
+    showModal({
+      title: '사용자 이름 변경',
+      content: (
+        <input 
+          type="text"
+          placeholder="이름을 입력하세요"
+          defaultValue={profileUsernameRef.current}
+          onChange={(e) => profileUsernameRef.current = e.target.value}
+          className="w-full p-2 border rounded-md text-sm"
+          autoFocus
+        />
+      ),
+      onConfirm: handleUpdateProfile
+    });
+  };
+
   const handleCompleteSettlement = async () => {
     if (!settlementId || isGuest || isArchived) return;
 
@@ -288,14 +348,13 @@ function App() {
             isGuest={isGuest}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
+            onOpenProfileModal={handleOpenProfileModal}
+            onLogout={handleLogout}
           />
           <div className="w-full p-4 sm:p-6 lg:p-8">
             <header className="flex items-center justify-between w-full mb-6">
               <button onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
                 <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-              </button>
-              <button onClick={handleLogout} className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                로그아웃
               </button>
             </header>
 
@@ -311,7 +370,7 @@ function App() {
               {settlementId ? (
                 <>
                   <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} showModal={showModal} />
-                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} showModal={showModal} />
+                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} showModal={showModal} refreshKey={commentRefreshKey} />
                 </>
               ) : (
                 <div className="text-center text-gray-500 mt-16">
