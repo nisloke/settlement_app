@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import imageCompression from 'browser-image-compression';
 import { supabase } from '../supabaseClient';
 
 const buildCommentTree = (comments) => {
@@ -250,11 +249,14 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
   const uploadImages = async (files) => {
     if (files.length === 0) return [];
     const uploadPromises = files.map(async (file) => {
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
-      const compressedFile = await imageCompression(file, options);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.webp`;
+      // Generate a unique file name while preserving the extension
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const filePath = `public/comments/${settlementId}/${fileName}`;
-      const { error: uploadError } = await supabase.storage.from('comment_images').upload(filePath, compressedFile);
+
+      // Upload the original file without compression
+      const { error: uploadError } = await supabase.storage.from('comment_images').upload(filePath, file);
+      
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('comment_images').getPublicUrl(filePath);
       return urlData.publicUrl;
