@@ -163,10 +163,10 @@ const Comment = ({ comment, level, commentProps }) => {
           </div>
           {replyImageFiles.length > 0 && (
             <div className="mt-2 grid grid-cols-5 gap-2 max-w-xl">
-              {replyImageFiles.map((file, index) => (
-                <div key={index} className="relative aspect-square">
-                  <img src={URL.createObjectURL(file)} alt={`Reply Preview ${index}`} className="w-full h-full object-cover rounded" />
-                  <button onClick={() => setReplyImageFiles(p => p.filter((_, i) => i !== index))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
+              {replyImageFiles.map((fileData) => (
+                <div key={fileData.id} className="relative aspect-square">
+                  <img src={fileData.preview} alt={`Reply Preview ${fileData.file.name}`} className="w-full h-full object-cover rounded" />
+                  <button onClick={() => setReplyImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
                 </div>
               ))}
             </div>
@@ -234,27 +234,49 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     };
   }, [settlementId, fetchComments, refreshKey]);
 
-  const handleFileChange = (e, isReply = false) => {
-    const files = Array.from(e.target.files);
+  const fileToDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e, isReply = false) => {
+    const newFiles = Array.from(e.target.files);
     const currentFiles = isReply ? replyImageFiles : imageFiles;
     const setFiles = isReply ? setReplyImageFiles : setImageFiles;
 
-    if (files.length + currentFiles.length > 10) {
+    if (newFiles.length + currentFiles.length > 10) {
       showModal({ title: '알림', content: '이미지는 최대 10장까지 첨부할 수 있습니다.' });
       return;
     }
-    setFiles(prevFiles => [...prevFiles, ...files]);
+
+    const filePromises = newFiles.map(async (file) => {
+      const preview = await fileToDataUrl(file);
+      return { file, preview, id: `${file.name}-${file.lastModified}-${Math.random()}` };
+    });
+
+    try {
+      const fileData = await Promise.all(filePromises);
+      setFiles(prevFiles => [...prevFiles, ...fileData]);
+    } catch (error) {
+      console.error("Error reading files: ", error);
+      showModal({ title: '오류', content: '파일을 읽는 중 오류가 발생했습니다.' });
+    }
   };
 
-  const uploadImages = async (files) => {
-    if (files.length === 0) return [];
-    const uploadPromises = files.map(async (file) => {
-      // Generate a unique file name while preserving the extension
+  const uploadImages = async (filesWithPreview) => {
+    if (filesWithPreview.length === 0) return [];
+    
+    const uploadPromises = filesWithPreview.map(async (fileData) => {
+      const { file } = fileData;
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const filePath = `public/comments/${settlementId}/${fileName}`;
 
-      // Upload the original file without compression
       const { error: uploadError } = await supabase.storage.from('comment_images').upload(filePath, file);
       
       if (uploadError) throw uploadError;
@@ -442,10 +464,10 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
         </div>
         {imageFiles.length > 0 && (
           <div className="mt-2 grid grid-cols-5 gap-2 max-w-xl">
-            {imageFiles.map((file, index) => (
-              <div key={index} className="relative aspect-square">
-                <img src={URL.createObjectURL(file)} alt={`Preview ${index}`} className="w-full h-full object-cover rounded" />
-                <button onClick={() => setImageFiles(p => p.filter((_, i) => i !== index))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
+            {imageFiles.map((fileData) => (
+              <div key={fileData.id} className="relative aspect-square">
+                <img src={fileData.preview} alt={`Preview ${fileData.file.name}`} className="w-full h-full object-cover rounded" />
+                <button onClick={() => setImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
               </div>
             ))}
           </div>
