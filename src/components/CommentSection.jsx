@@ -434,6 +434,8 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     if (error) {
       showModal({ title: '오류', content: '댓글을 고정하는 데 실패했습니다.' });
       console.error('Error pinning comment:', error);
+    } else {
+      fetchComments();
     }
   };
 
@@ -442,6 +444,8 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     if (error) {
       showModal({ title: '오류', content: '댓글 고정을 해제하는 데 실패했습니다.' });
       console.error('Error unpinning comment:', error);
+    } else {
+      fetchComments();
     }
   };
 
