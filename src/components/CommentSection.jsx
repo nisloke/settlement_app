@@ -205,34 +205,54 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
 
   const fetchComments = useCallback(async () => {
     if (!settlementId) return;
-    const { data, error } = await supabase
+
+    // 1. Fetch all comments for the settlement directly from the table
+    const { data: commentsData, error: commentsError } = await supabase
       .from('comments')
-      .select(`
-        *,
-        profiles (
-          username
-        )
-      `)
-      .eq('settlement_id', settlementId)
-      .order('created_at', { ascending: true });
+      .select('*')
+      .eq('settlement_id', settlementId);
 
-    if (error) {
-      console.error('Error fetching comments:', error);
-    } else {
-      // The data from this query will have a `profiles` object nested inside.
-      // We need to flatten it to match the previous data structure where `username` was a top-level key.
-      const flattenedData = data.map(c => ({
-        ...c,
-        username: c.profiles?.username || null
-      }));
-
-      const pinned = flattenedData.find(c => c.is_pinned) || null;
-      const regularComments = flattenedData.filter(c => !c.is_pinned);
-      
-      setPinnedComment(pinned);
-      const commentTree = buildCommentTree(regularComments);
-      setComments(commentTree);
+    if (commentsError) {
+      console.error('Error fetching comments:', commentsError);
+      return;
     }
+
+    // 2. Get all unique user IDs from the comments
+    const userIds = [...new Set(commentsData.map(c => c.user_id).filter(id => id))];
+
+    // 3. Fetch the profiles for those user IDs
+    let profilesMap = {};
+    if (userIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Continue without profile data if it fails
+      } else {
+        profilesData.forEach(p => { profilesMap[p.id] = p.username; });
+      }
+    }
+
+    // 4. Join the data on the client
+    const joinedData = commentsData.map(c => ({
+      ...c,
+      username: c.user_id ? profilesMap[c.user_id] : null
+    }));
+
+    // 5. Sort by date (was previously done in the DB query)
+    joinedData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // 6. Separate pinned comment and build tree (same as before)
+    const pinned = joinedData.find(c => c.is_pinned) || null;
+    const regularComments = joinedData.filter(c => !c.is_pinned);
+    
+    setPinnedComment(pinned);
+    const commentTree = buildCommentTree(regularComments);
+    setComments(commentTree);
+
   }, [settlementId]);
 
   useEffect(() => {
