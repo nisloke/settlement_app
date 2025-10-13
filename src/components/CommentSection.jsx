@@ -206,28 +206,16 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
   const fetchComments = useCallback(async () => {
     if (!settlementId) return;
     const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        *,
-        profiles (
-          username
-        )
-      `)
+      .from('comments_with_profiles')
+      .select('*')
       .eq('settlement_id', settlementId)
       .order('created_at', { ascending: true });
 
     if (error) {
       console.error('Error fetching comments:', error);
     } else {
-      // The data from this query will have a `profiles` object nested inside.
-      // We need to flatten it to match the previous data structure where `username` was a top-level key.
-      const flattenedData = data.map(c => ({
-        ...c,
-        username: c.profiles?.username || null
-      }));
-
-      const pinned = flattenedData.find(c => c.is_pinned) || null;
-      const regularComments = flattenedData.filter(c => !c.is_pinned);
+      const pinned = data.find(c => c.is_pinned) || null;
+      const regularComments = data.filter(c => !c.is_pinned);
       
       setPinnedComment(pinned);
       const commentTree = buildCommentTree(regularComments);
