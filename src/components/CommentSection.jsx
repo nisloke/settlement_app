@@ -51,7 +51,9 @@ const Comment = ({ comment, level, commentProps }) => {
     setReplyContent,
     setReplyImageFiles,
     setModalImageUrl,
-    handleFileChange
+    handleFileChange,
+    handlePinComment,
+    handleUnpinComment
   } = commentProps;
 
   const editInputRef = React.useRef(null);
@@ -111,6 +113,8 @@ const Comment = ({ comment, level, commentProps }) => {
         <p className="text-xs font-semibold text-gray-600">{comment.user_id ? (comment.username || '이름없음') : (comment.guest_name || '게스트')}</p>
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
+            {isOwner && !comment.is_pinned && !isEditing && <button onClick={() => handlePinComment(comment.id)} className="text-xs text-green-600 hover:text-green-800">공지</button>}
+            {isOwner && comment.is_pinned && !isEditing && <button onClick={() => handleUnpinComment(comment.id)} className="text-xs text-green-800 font-bold">공지 해제</button>}
             {!isEditing && <button onClick={() => setReplyingTo(comment.id)} className="text-xs text-gray-600 hover:text-blue-700">답글</button>}
             {canEdit && !isEditing && <button onClick={() => startEditing(comment)} className="text-xs text-blue-500 hover:text-blue-700" disabled={canGuestManage && !guestPasswords[comment.id]}>수정</button>}
             {canDelete && !isEditing && <button onClick={() => handleDeleteComment(comment)} className="text-xs text-red-500 hover:text-red-700" disabled={canGuestManage && !guestPasswords[comment.id]}>삭제</button>}
@@ -185,6 +189,7 @@ const Comment = ({ comment, level, commentProps }) => {
 
 const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey }) => {
   const [comments, setComments] = useState([]);
+  const [pinnedComment, setPinnedComment] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
   const [guestName, setGuestName] = useState('');
@@ -209,7 +214,11 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     if (error) {
       console.error('Error fetching comments:', error);
     } else {
-      const commentTree = buildCommentTree(data);
+      const pinned = data.find(c => c.is_pinned) || null;
+      const regularComments = data.filter(c => !c.is_pinned);
+      
+      setPinnedComment(pinned);
+      const commentTree = buildCommentTree(regularComments);
       setComments(commentTree);
     }
   }, [settlementId]);
@@ -420,6 +429,22 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     setGuestPasswords(prev => ({ ...prev, [commentId]: password }));
   };
 
+  const handlePinComment = async (commentId) => {
+    const { error } = await supabase.rpc('pin_comment', { comment_id_arg: commentId });
+    if (error) {
+      showModal({ title: '오류', content: '댓글을 고정하는 데 실패했습니다.' });
+      console.error('Error pinning comment:', error);
+    }
+  };
+
+  const handleUnpinComment = async (commentId) => {
+    const { error } = await supabase.rpc('unpin_comment', { comment_id_arg: commentId });
+    if (error) {
+      showModal({ title: '오류', content: '댓글 고정을 해제하는 데 실패했습니다.' });
+      console.error('Error unpinning comment:', error);
+    }
+  };
+
   const commentProps = {
     isOwner,
     currentUserId,
@@ -441,12 +466,29 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     setReplyContent,
     setReplyImageFiles,
     setModalImageUrl,
-    handleFileChange
+    handleFileChange,
+    handlePinComment,
+    handleUnpinComment
   };
 
   return (
     <div className="mt-8 p-4 bg-white rounded-lg shadow-md">
       <h2 className="text-xl font-bold mb-4">댓글</h2>
+
+      {pinnedComment && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm font-bold text-blue-700">고정된 공지</span>
+          </div>
+          <div className="p-1 border-l-4 border-blue-400 bg-blue-50 rounded-r-lg">
+            <Comment key={pinnedComment.id} comment={pinnedComment} level={0} commentProps={commentProps} />
+          </div>
+        </div>
+      )}
+
       <div className="mb-4">
         {isGuest && (
           <div className="flex gap-4 mb-2">
@@ -475,7 +517,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
       </div>
 
       <div className="space-y-4">
-        {comments.length === 0 ? (
+        {comments.length === 0 && !pinnedComment ? (
           <p className="text-gray-500">아직 댓글이 없습니다.</p>
         ) : (
           comments.map((comment) => <Comment key={comment.id} comment={comment} level={0} commentProps={commentProps} />)
