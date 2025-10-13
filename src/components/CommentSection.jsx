@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../supabaseClient';
 
 const buildCommentTree = (comments) => {
@@ -246,34 +247,11 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
     setFiles(prevFiles => [...prevFiles, ...files]);
   };
 
-  const compressImageWithWorker = (file) => {
-    return new Promise((resolve, reject) => {
-      // Use an absolute path from the public folder
-      const worker = new Worker('/image-compressor.worker.js');
-
-      worker.onmessage = (event) => {
-        if (event.data.error) {
-          reject(new Error(event.data.error));
-        } else {
-          resolve(event.data.compressedFile);
-        }
-        worker.terminate(); // Clean up the worker
-      };
-
-      worker.onerror = (error) => {
-        reject(new Error(`Worker error: ${error.message}`));
-        worker.terminate(); // Clean up the worker
-      };
-
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, fileType: 'image/webp' };
-      worker.postMessage({ file, options });
-    });
-  };
-
   const uploadImages = async (files) => {
     if (files.length === 0) return [];
     const uploadPromises = files.map(async (file) => {
-      const compressedFile = await compressImageWithWorker(file);
+      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
+      const compressedFile = await imageCompression(file, options);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.webp`;
       const filePath = `public/comments/${settlementId}/${fileName}`;
       const { error: uploadError } = await supabase.storage.from('comment_images').upload(filePath, compressedFile);
