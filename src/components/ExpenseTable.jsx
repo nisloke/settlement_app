@@ -1,29 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
-
-// Debounce function can be moved to a utils file later
-const debounce = (func, delay) => {
-  let timeout;
-  const debounced = function executed(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, delay);
-  };
-  debounced.cancel = () => {
-    clearTimeout(timeout);
-  };
-  return debounced;
-};
+import React, { useState, useMemo } from 'react';
 
 const ExpenseTable = ({
   settlementId,
   isGuest,
   isArchived,
-  title,
-  subtitle,
   participants,
   setParticipants,
   expenses,
@@ -33,9 +13,9 @@ const ExpenseTable = ({
   onCompleteSettlement,
   onReactivateSettlement,
   showModal,
+  saveStatus,
 }) => {
   const [editingCostId, setEditingCostId] = useState(null);
-  const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
   const [filteredParticipantId, setFilteredParticipantId] = useState('');
 
   const expensesToDisplay = useMemo(() => {
@@ -54,46 +34,10 @@ const ExpenseTable = ({
     return participants.filter(p => p.id === numericId);
   }, [participants, filteredParticipantId]);
 
-  // Auto-save data to Supabase with debouncing
-  useEffect(() => {
-    if (!settlementId || isGuest || isArchived) return;
-
-    const dataToSave = {
-      title,
-      subtitle,
-      participants,
-      expenses,
-      personalDeductionItems,
-    };
-
-    const debouncedSave = debounce(async () => {
-      setSaveStatus('saving');
-      const { error } = await supabase
-        .from('settlements')
-        .update({ data: dataToSave })
-        .eq('id', settlementId);
-
-      if (error) {
-        console.error('Error saving settlement:', error);
-        setSaveStatus('error');
-      } else {
-        console.log('Settlement saved successfully!');
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      }
-    }, 1000); // 1-second debounce
-
-    debouncedSave();
-
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [title, subtitle, participants, expenses, personalDeductionItems, settlementId, isGuest, isArchived]);
-
   const handleCompleteSettlement = async () => {
     showModal({
       title: '정산 완료',
-      content: '정산을 완료하고 보관하시겠습니까? 완료 후에도 \'수정\' 버튼을 통해 다시 활성화할 수 있습니다.',
+      content: '정산을 완료하시겠습니까?',
       onConfirm: () => onCompleteSettlement(),
     });
   };
@@ -352,8 +296,8 @@ const ExpenseTable = ({
           )}
           {!readOnly && (
             <>
-              <button onClick={addParticipant} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
-              <button onClick={removeParticipant} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+              <button title="Add participant" onClick={addParticipant} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
+              <button title="Remove participant" onClick={removeParticipant} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
             </>
           )}
         </div>
@@ -369,7 +313,7 @@ const ExpenseTable = ({
               <th scope="col" className="py-3 px-4 border-r text-center">N</th>
               {participantsToDisplay.map(p => (
                 <th key={p.id} scope="col" className="py-3 px-4 whitespace-nowrap">
-                  <input type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={readOnly} className="w-full bg-transparent text-center font-bold read-only:bg-transparent read-only:ring-0"/>
+                  <input title={`${p.name} participant name`} type="text" value={p.name} onChange={(e) => handleParticipantNameChange(p.id, e.target.value)} readOnly={readOnly} className="w-full bg-transparent text-center font-bold read-only:bg-transparent read-only:ring-0"/>
                 </th>
               ))}
               <th scope="col" className="py-3 px-4 border-l text-center whitespace-nowrap">전체</th>
@@ -384,11 +328,12 @@ const ExpenseTable = ({
 
               return (
                 <tr key={expense.id} className={`border-b hover:bg-gray-50 ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : ''}`}>
-                  <td className={`sticky left-0 py-1 px-2 font-medium border-r whitespace-nowrap ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full py-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
+                  <td className={`sticky left-0 py-1 px-2 font-medium border-r whitespace-nowrap ${filteredParticipantId && expense.attendees[filteredParticipantId] ? 'bg-yellow-100' : 'bg-white'} hover:bg-gray-50`}><input type="text" placeholder="항목 이름" value={expense.itemName} onChange={(e) => handleItemNameChange(expense.id, e.target.value)} readOnly={readOnly} className="w-full py-2 read-only:bg-transparent read-only:ring-0 bg-transparent"/></td>
                   <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">
                     {editingCostId === expense.id && !readOnly ? (
                       <input
                         type="number"
+                        title={`${expense.itemName} cost`}
                         value={expense.totalCost}
                         onChange={(e) => handleCostChange(expense.id, e.target.value)}
                         onBlur={() => setEditingCostId(null)}
@@ -396,7 +341,11 @@ const ExpenseTable = ({
                         autoFocus
                       />
                     ) : (
-                      <span onClick={() => !readOnly && setEditingCostId(expense.id)} className={`block w-full h-full flex items-center justify-end ${!readOnly && 'cursor-pointer'}`}>
+                      <span 
+                        onClick={() => !readOnly && setEditingCostId(expense.id)} 
+                        onFocus={() => !readOnly && setEditingCostId(expense.id)}
+                        tabIndex={readOnly ? -1 : 0}
+                        className={`block w-full h-full flex items-center justify-end ${!readOnly && 'cursor-pointer'}`}>
                         {expense.totalCost.toLocaleString()} 원
                       </span>
                     )}
@@ -404,6 +353,7 @@ const ExpenseTable = ({
                   <td className="py-3 px-4 border-r text-center">
                     <input
                       type="checkbox"
+                      title={`Mark ${expense.itemName} as a personal expense`}
                       className="w-4 h-4"
                       checked={!!personalDeductionItems[expense.id]}
                       onChange={() => handleIsPersonalExpenseChange(expense.id)}
@@ -420,6 +370,7 @@ const ExpenseTable = ({
                     <td key={p.id} className="py-3 px-4 text-center">
                       <input
                         type="checkbox"
+                        title={`${p.name} attended ${expense.itemName}`}
                         className="w-4 h-4"
                         checked={!!expense.attendees[p.id]}
                         onChange={() => handleAttendeeCheckboxChange(expense.id, p.id)}
@@ -430,6 +381,7 @@ const ExpenseTable = ({
                   <td className="py-3 px-4 border-l text-center">
                     <input
                       type="checkbox"
+                      title={`Select all attendees for ${expense.itemName}`}
                       className="w-4 h-4"
                       checked={areAllChecked}
                       onChange={() => handleSelectAllForRow(expense.id)}
@@ -443,8 +395,8 @@ const ExpenseTable = ({
               <td className="sticky left-0 bg-white py-2 px-4">
                 {!readOnly && (
                   <div className="flex items-center gap-1">
-                    <button onClick={addExpense} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
-                    <button onClick={removeExpense} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
+                    <button title="Add expense" onClick={addExpense} className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600">+</button>
+                    <button title="Remove expense" onClick={removeExpense} className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-md hover:bg-red-600">-</button>
                   </div>
                 )}
               </td>
@@ -471,17 +423,18 @@ const ExpenseTable = ({
                 <td className="w-28 py-3 px-4 border-r text-right whitespace-nowrap">{deductionItem.totalCost.toLocaleString()} 원</td>
                 <td className="py-3 px-4 border-r text-center"></td>
                 <td className="border-r"></td>
-                {participantsToDisplay.map(p => (
-                  <td key={p.id} className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4"
-                      checked={!!deductionItem.deductingParticipants[p.id]}
-                      onChange={() => handlePersonalDeductionCheckboxChange(deductionItem.id, p.id)}
-                      disabled={readOnly}
-                    />
-                  </td>
-                ))}
+                                {participantsToDisplay.map(p => (
+                                  <td key={p.id} className="py-3 px-4 text-center">
+                                    <input
+                                      type="checkbox"
+                                      title={`${p.name} pays for ${deductionItem.itemName}`}
+                                      className="w-4 h-4"
+                                      checked={!!deductionItem.deductingParticipants[p.id]}
+                                      onChange={() => handlePersonalDeductionCheckboxChange(deductionItem.id, p.id)}
+                                      disabled={readOnly}
+                                    />
+                                  </td>
+                                ))}
                 <td className="border-l"></td>
               </tr>
             ))}
@@ -508,3 +461,4 @@ const ExpenseTable = ({
 };
 
 export default ExpenseTable;
+

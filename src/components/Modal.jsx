@@ -1,7 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = '확인', cancelText = '취소' }) => {
   if (!isOpen) return null;
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Enter') {
+        if (onConfirm) {
+          onConfirm();
+        }
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onConfirm, onClose]);
 
   return (
     <div 

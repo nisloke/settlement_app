@@ -170,7 +170,7 @@ const Comment = ({ comment, level, commentProps }) => {
               {replyImageFiles.map((fileData) => (
                 <div key={fileData.id} className="relative aspect-square">
                   <img src={fileData.preview} alt={`Reply Preview ${fileData.file.name}`} className="w-full h-full object-cover rounded" />
-                  <button onClick={() => setReplyImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
+                  <button title="Remove image" onClick={() => setReplyImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
                 </div>
               ))}
             </div>
@@ -545,7 +545,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
             {imageFiles.map((fileData) => (
               <div key={fileData.id} className="relative aspect-square">
                 <img src={fileData.preview} alt={`Preview ${fileData.file.name}`} className="w-full h-full object-cover rounded" />
-                <button onClick={() => setImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
+                <button title="Remove image" onClick={() => setImageFiles(p => p.filter(item => item.id !== fileData.id))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">X</button>
               </div>
             ))}
           </div>
@@ -563,7 +563,7 @@ const CommentSection = ({ settlementId, isGuest, isOwner, showModal, refreshKey 
       {modalImageUrl && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setModalImageUrl(null)}>
           <img src={modalImageUrl} alt="Enlarged view" className="max-w-[90vw] max-h-[90vh] object-contain" onClick={(e) => e.stopPropagation()} />
-          <button className="absolute top-4 right-4 text-white text-3xl" onClick={() => setModalImageUrl(null)}>&times;</button>
+          <button title="Close" className="absolute top-4 right-4 text-white text-3xl" onClick={() => setModalImageUrl(null)}>&times;</button>
         </div>
       )}
     </div>

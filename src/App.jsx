@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
-import ExpenseTable from './components/ExpenseTable';
-import CommentSection from './components/CommentSection';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import SettlementPage from './components/SettlementPage';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
@@ -15,16 +15,9 @@ function App() {
   const [modalState, setModalState] = useState({ isOpen: false, title: '', content: null, onConfirm: null });
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
   const profileUsernameRef = useRef('');
-
-  // Data states
-  const [settlementId, setSettlementId] = useState(null);
-  const [title, setTitle] = useState('');
-  const [subtitle, setSubtitle] = useState('');
-  const [participants, setParticipants] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [personalDeductionItems, setPersonalDeductionItems] = useState({});
-  const [isArchived, setIsArchived] = useState(false);
   const [settlementList, setSettlementList] = useState([]);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const getTargetUserId = useCallback((user) => {
     const isGuestUser = user?.id === import.meta.env.VITE_GUEST_USER_ID;
@@ -52,38 +45,9 @@ function App() {
     }
   }, [getTargetUserId]);
 
-  const loadSettlementData = useCallback(async (id) => {
-    if (!id) {
-      setSettlementId(null);
-      return;
-    }
-    const { data, error } = await supabase.from('settlements').select('id, data, status').eq('id', id).single();
-
-    if (error) {
-      console.error('Error fetching selected settlement:', error);
-      setSettlementId(null);
-    } else if (data) {
-      setSettlementId(data.id);
-      const parsedData = data.data || {};
-      setTitle(parsedData.title || '제목 없음');
-      setSubtitle(parsedData.subtitle || '');
-      setParticipants(parsedData.participants || []);
-      setExpenses(parsedData.expenses || []);
-      setPersonalDeductionItems(parsedData.personalDeductionItems || {});
-      setIsArchived(data.status === 'archived');
-
-      if (data.status === 'active') {
-        showModal({ title: '주의', content: '정산중입니다. 입금 금지!' });
-      }
-    }
-  }, []);
-
   const createNewSettlement = useCallback(async () => {
     const user = session?.user;
-
-    if (!user || isGuest) {
-      return;
-    }
+    if (!user || isGuest) return;
 
     const targetUserId = getTargetUserId(user);
     
@@ -99,10 +63,10 @@ function App() {
         alert('새로운 정산 시트를 만드는 데 실패했습니다.');
     } else if (newSettlement) {
         setSettlementList(list => [newSettlement, ...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-        await loadSettlementData(newSettlement.id);
+        navigate(`/settlement/${newSettlement.id}`);
         setIsSidebarOpen(false);
     }
-  }, [session, getTargetUserId, isGuest, loadSettlementData, setSettlementList, setIsSidebarOpen]);
+  }, [session, getTargetUserId, isGuest, navigate]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -112,16 +76,19 @@ function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (!session && location.pathname !== '/') {
+        navigate('/');
+      }
       setLoading(false);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
-    const loadUserData = async () => {
+    const loadInitialData = async () => {
       if (session) {
         setLoading(true);
         const user = session.user;
@@ -131,67 +98,57 @@ function App() {
 
         await fetchSettlementList(user);
 
-        const targetUserId = getTargetUserId(user);
-        const { data: activeSettlements, error: activeError } = await supabase
-          .from('settlements')
-          .select('id')
-          .eq('user_id', targetUserId)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const activeSettlement = activeSettlements ? activeSettlements[0] : null;
-        
-        if (activeError) {
-          console.error("Error fetching active settlement:", activeError);
-        }
-
-        
-        if (activeSettlement) {
-          await loadSettlementData(activeSettlement.id);
-        } else {
-          const { data: latestSettlement } = await supabase
-            .from('settlements')
-            .select('id')
-            .eq('user_id', targetUserId)
-            .not('status', 'eq', 'deleted')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          
-          if (latestSettlement) {
-            await loadSettlementData(latestSettlement.id);
-          } else if (!isGuestUser) {
-            await createNewSettlement();
-          }
+        if (location.pathname === '/') {
+            const targetUserId = getTargetUserId(user);
+            const { data: latestSettlement } = await supabase
+                .from('settlements')
+                .select('id')
+                .eq('user_id', targetUserId)
+                .not('status', 'eq', 'deleted')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+            
+            if (latestSettlement) {
+                navigate(`/settlement/${latestSettlement.id}`);
+            } else if (!isGuestUser) {
+                createNewSettlement();
+            }
         }
         setLoading(false);
-      } else {
-        setSettlementId(null);
-        setTitle('');
-        setSubtitle('');
-        setParticipants([]);
-        setExpenses([]);
-        setPersonalDeductionItems({});
-        setSettlementList([]);
       }
     };
 
-    loadUserData();
-  }, [session, fetchSettlementList, getTargetUserId, loadSettlementData, createNewSettlement]);
+    loadInitialData();
+  }, [session, fetchSettlementList, getTargetUserId, createNewSettlement, navigate, location.pathname]);
 
-  const showModal = ({ title, content, onConfirm = null }) => {
+  const showModal = useCallback(({ title, content, onConfirm = null }) => {
     setModalState({ isOpen: true, title, content, onConfirm });
-  };
+  }, []);
 
   const closeModal = () => {
     setModalState({ isOpen: false, title: '', content: null, onConfirm: null });
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); };
+  const handleLogout = async () => { 
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  const handleShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        showModal({ title: '공유', content: '페이지 주소가 클립보드에 복사되었습니다.' });
+      })
+      .catch(err => {
+        console.error('Failed to copy URL: ', err);
+        showModal({ title: '오류', content: '주소 복사에 실패했습니다.' });
+      });
+  };
   
   const handleSelectSettlement = (id) => { 
-    loadSettlementData(id); 
+    navigate(`/settlement/${id}`);
     setIsSidebarOpen(false);
   };
 
@@ -215,7 +172,7 @@ function App() {
         showModal({ title: '오류', content: `프로필 업데이트 실패: ${error.message}` });
       } else {
         showModal({ title: '성공', content: '사용자 이름이 성공적으로 저장되었습니다.' });
-        setCommentRefreshKey(k => k + 1); // Trigger comment refresh
+        setCommentRefreshKey(k => k + 1);
       }
     }, 200);
   };
@@ -253,10 +210,9 @@ function App() {
     });
   };
 
-  const handleCompleteSettlement = async () => {
-    if (!settlementId || isGuest || isArchived) return;
+  const handleCompleteSettlement = async (settlementId, dataToSave) => {
+    if (!settlementId || isGuest) return;
 
-    const dataToSave = { title, subtitle, participants, expenses, personalDeductionItems };
     const { error: saveError } = await supabase.from('settlements').update({ data: dataToSave }).eq('id', settlementId);
 
     if (saveError) {
@@ -272,7 +228,7 @@ function App() {
     } else {
         showModal({ title: '완료', content: '정산이 완료되어 보관되었습니다.' });
         setSettlementList(list => list.map(s => s.id === settlementId ? updatedSettlement : s).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-        await loadSettlementData(settlementId);
+        navigate(`/settlement/${settlementId}`);
     }
   };
 
@@ -296,7 +252,7 @@ function App() {
 
         showModal({ title: '성공', content: '정산이 다시 활성화되어 수정을 계속할 수 있습니다.' });
         await fetchSettlementList(session?.user);
-        await loadSettlementData(idToReactivate);
+        navigate(`/settlement/${idToReactivate}`);
       }
     });
   };
@@ -313,15 +269,15 @@ function App() {
         } else {
             showModal({ title: '삭제 완료', content: '정산 내역이 삭제되었습니다.' });
             setSettlementList(list => list.filter(s => s.id !== idToDelete));
-            if (settlementId === idToDelete) {
-                setSettlementId(null);
+            if (location.pathname.includes(idToDelete)) {
+                navigate('/');
             }
         }
       }
     });
   };
 
-  if (loading) {
+  if (loading && !session) {
     return <div className="w-full h-screen flex items-center justify-center">Loading...</div>;
   }
 
@@ -335,55 +291,48 @@ function App() {
       >
         {modalState.content}
       </Modal>
-      {!session ? (
-        <div className="w-full"><Login /></div>
-      ) : (
-        <>
-          <Sidebar 
-            settlements={settlementList}
-            onSelectSettlement={handleSelectSettlement} 
-            onDeleteSettlement={handleDeleteSettlement}
-            createNewSettlement={createNewSettlement}
-            currentSettlementId={settlementId}
-            isGuest={isGuest}
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            onOpenProfileModal={handleOpenProfileModal}
-            onLogout={handleLogout}
-          />
-          <div className="w-full p-4 sm:p-6 lg:p-8">
-            <header className="flex items-center justify-between w-full mb-6">
-              <button onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
-                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-              </button>
-            </header>
-
-            <div className="text-center mb-8">
-              <div className="flex flex-col items-center max-w-2xl mx-auto">
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} readOnly={isGuest || isArchived} className="text-3xl sm:text-4xl font-bold text-gray-800 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
-                <input type="text" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} readOnly={isGuest || isArchived} className="text-gray-500 mt-2 text-center bg-transparent w-full focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md read-only:bg-transparent read-only:ring-0" />
+      
+      <Routes>
+        <Route path="/" element={!session ? <Login /> : <div className="w-full h-screen flex items-center justify-center">Loading...</div>} />
+        <Route path="/settlement/:id" element={
+          !session ? <Login /> : (
+            <>
+              <Sidebar 
+                settlements={settlementList}
+                onSelectSettlement={handleSelectSettlement} 
+                onDeleteSettlement={handleDeleteSettlement}
+                createNewSettlement={createNewSettlement}
+                currentSettlementId={location.pathname.split('/').pop()}
+                isGuest={isGuest}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                onOpenProfileModal={handleOpenProfileModal}
+                onLogout={handleLogout}
+              />
+              <div className="w-full p-4 sm:p-6 lg:p-8">
+                <header className="flex items-center justify-between w-full mb-6">
+                  <div className="flex items-center gap-2">
+                    <button title="Open sidebar" onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
+                      <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <button title="Share URL" onClick={handleShare} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
+                      <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
+                    </button>
+                  </div>
+                </header>
+                <SettlementPage 
+                  isGuest={isGuest} 
+                  isOwner={isOwner} 
+                  showModal={showModal} 
+                  commentRefreshKey={commentRefreshKey} 
+                  handleCompleteSettlement={handleCompleteSettlement}
+                  handleReactivateSettlement={handleReactivateSettlement}
+                />
               </div>
-            </div>
-
-            <main>
-              {/* Reuse button is removed */}
-              {settlementId ? (
-                <>
-                  <ExpenseTable key={settlementId} settlementId={settlementId} isGuest={isGuest} isArchived={isArchived} title={title} setTitle={setTitle} subtitle={subtitle} setSubtitle={setSubtitle} participants={participants} setParticipants={setParticipants} expenses={expenses} setExpenses={setExpenses} personalDeductionItems={personalDeductionItems} setPersonalDeductionItems={setPersonalDeductionItems} onCompleteSettlement={handleCompleteSettlement} onReactivateSettlement={handleReactivateSettlement} showModal={showModal} />
-                  <CommentSection settlementId={settlementId} isGuest={isGuest} isOwner={isOwner} showModal={showModal} refreshKey={commentRefreshKey} />
-                </>
-              ) : (
-                <div className="text-center text-gray-500 mt-16">
-                  <p>정산 내역이 없습니다. 새로운 정산을 시작하세요.</p>
-                  <button onClick={createNewSettlement} disabled={isGuest} className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-400">
-                    새 정산 시작하기
-                  </button>
-                </div>
-              )}
-            </main>
-          </div>
-        </>
-      )}
+            </>
+          )
+        } />
+      </Routes>
     </div>
   );
 }
