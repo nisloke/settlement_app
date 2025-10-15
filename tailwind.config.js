@@ -5,7 +5,11 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}", // 이 부분을 이렇게 수정해 주세요.
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        thirthy: ['Thirthy', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }

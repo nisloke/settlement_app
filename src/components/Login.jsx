@@ -40,8 +40,16 @@ const Login = () => {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+    <div className="relative flex justify-center items-center h-screen bg-gray-100 overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <h1 className="font-thirthy text-7xl md:text-9xl font-extrabold text-gray-300 tracking-wider text-center select-none flex flex-col">
+          <span>Gently</span>
+          <span>Split</span>
+          <span>the Bill</span>
+          <span className="text-gray-400">FAST</span>
+        </h1>
+      </div>
+      <div className="relative z-20 w-full max-w-md p-8 space-y-6 bg-white bg-opacity-25 backdrop-blur-sm rounded-lg shadow-lg">
         <h2 className="text-2xl font-bold text-center text-gray-800">로그인</h2>
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
@@ -106,9 +114,6 @@ const Login = () => {
           </div>
 
           {error && <p className="text-sm text-center text-red-500">{error}</p>}
-           <p className="text-xs text-center text-gray-500">
-            테스트 계정이 없다면 Supabase Dashboard의 Authentication 섹션에서 사용자를 추가해주세요.
-          </p>
         </form>
       </div>
     </div>
