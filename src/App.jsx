@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
 import PrivateRoute from './components/PrivateRoute';
@@ -117,13 +117,6 @@ function App() {
       loadUserData();
     }
   }, [session, fetchSettlementList]);
-
-  useEffect(() => {
-    if (session && isGuest && location.pathname === '/' && settlementList.length > 0) {
-      navigate(`/settlement/${settlementList[0].id}`, { replace: true });
-    }
-  }, [session, isGuest, location.pathname, settlementList, navigate]);
-
 
   const showModal = useCallback(({ title, content, onConfirm = null }) => {
     setModalState({ isOpen: true, title, content, onConfirm });
@@ -275,7 +268,7 @@ function App() {
             showModal({ title: '삭제 완료', content: '정산 내역이 삭제되었습니다.' });
             setSettlementList(list => list.filter(s => s.id !== idToDelete));
             if (location.pathname.includes(idToDelete)) {
-                navigate('/');
+                navigate('/dashboard');
             }
         }
       }
@@ -299,9 +292,19 @@ function App() {
       
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={
+        <Route path="/dashboard" element={
           <PrivateRoute session={session}>
             <Dashboard username={username} settlementList={settlementList} createNewSettlement={createNewSettlement} />
+          </PrivateRoute>
+        } />
+        <Route path="/" element={
+          <PrivateRoute session={session}>
+            {isGuest ? (
+              settlementList.length > 0 ? 
+              <Navigate to={`/settlement/${settlementList[0].id}`} replace /> : null
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )}
           </PrivateRoute>
         } />
         <Route path="/settlement/:id" element={
@@ -313,6 +316,7 @@ function App() {
               createNewSettlement={createNewSettlement}
               currentSettlementId={location.pathname.split('/').pop()}
               isGuest={isGuest}
+              isOwner={isOwner}
               isOpen={isSidebarOpen}
               onClose={() => setIsSidebarOpen(false)}
               onOpenProfileModal={handleOpenProfileModal}

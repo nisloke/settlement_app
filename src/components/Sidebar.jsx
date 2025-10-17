@@ -7,6 +7,7 @@ const Sidebar = ({
   createNewSettlement, 
   currentSettlementId, 
   isGuest, 
+  isOwner,
   isOpen, 
   onClose, 
   onOpenProfileModal,
@@ -77,6 +78,13 @@ const Sidebar = ({
                 로그아웃
               </button>
             </div>
+            {isOwner && (
+              <div className="mb-4">
+                <Link to="/dashboard" onClick={onClose} className="block w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded text-center">
+                  대시보드
+                </Link>
+              </div>
+            )}
             <div className="mb-4">
                 <button onClick={handleCreate} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                     + 새 정산 시작
