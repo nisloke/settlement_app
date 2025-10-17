@@ -27,6 +27,16 @@ const Login = () => {
     }
   };
 
+  const handleOAuthLogin = async (provider) => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+    });
+    if (error) {
+      setError(error.message);
+    }
+  };
+
   const handleGuestLogin = async () => {
     setError(null);
     setGuestLoading(true);
@@ -56,7 +66,7 @@ const Login = () => {
       </div>
       <div className="relative z-20 w-full max-w-md p-8 space-y-6 bg-white bg-opacity-25 backdrop-blur-sm rounded-lg shadow-lg">
         <h2 className="text-2xl font-bold text-center text-gray-800">로그인</h2>
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label
               htmlFor="email"
@@ -98,6 +108,29 @@ const Login = () => {
               className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
             >
               {loading ? '로그인 중...' : '로그인'}
+            </button>
+          </div>
+
+          <div className="relative flex items-center justify-center">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="flex-shrink mx-4 text-sm text-gray-500">또는</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('google')}
+              className="w-full px-4 py-2 font-bold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:bg-gray-400"
+            >
+              구글로 로그인
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('kakao')}
+              className="w-full px-4 py-2 font-bold text-black bg-yellow-400 rounded-md hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:bg-gray-400"
+            >
+              카카오로 로그인
             </button>
           </div>
 
