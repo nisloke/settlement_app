@@ -10,6 +10,8 @@ const ExpenseTable = ({
   setExpenses,
   personalDeductionItems,
   setPersonalDeductionItems,
+  paymentStatus,
+  setPaymentStatus,
   onCompleteSettlement,
   onReactivateSettlement,
   showModal,
@@ -17,6 +19,13 @@ const ExpenseTable = ({
 }) => {
   const [editingCostId, setEditingCostId] = useState(null);
   const [filteredParticipantId, setFilteredParticipantId] = useState('');
+
+  const handlePaymentStatusChange = (participantId) => {
+    setPaymentStatus(prevStatus => ({
+      ...prevStatus,
+      [participantId]: !prevStatus[participantId]
+    }));
+  };
 
   const expensesToDisplay = useMemo(() => {
     if (!filteredParticipantId) {
@@ -453,6 +462,25 @@ const ExpenseTable = ({
                 <td className="border-l"></td>
               </tr>
             )}
+            <tr className="border-t bg-gray-50 font-bold">
+              <td className="sticky left-0 bg-gray-50 py-3 px-4 border-r whitespace-nowrap">입금 확인</td>
+              <td className="w-28 py-3 px-4 border-r"></td>
+              <td className="py-3 px-4 border-r"></td>
+              <td className="border-r"></td>
+              {participantsToDisplay.map(p => (
+                <td key={p.id} className="py-3 px-4 text-center">
+                  <input
+                    type="checkbox"
+                    title={`${p.name} 입금 확인`}
+                    className="w-4 h-4"
+                    checked={!!paymentStatus[p.id]}
+                    onChange={() => handlePaymentStatusChange(p.id)}
+                    disabled={isGuest}
+                  />
+                </td>
+              ))}
+              <td className="border-l"></td>
+            </tr>
           </tbody>
         </table>
       </div>

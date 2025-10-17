@@ -1,19 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from './supabaseClient';
+
+import PrivateRoute from './components/PrivateRoute';
 import SettlementPage from './components/SettlementPage';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
+import Dashboard from './components/Dashboard';
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState('');
   const [isGuest, setIsGuest] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', content: null, onConfirm: null });
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
+  const [pageRefreshKey, setPageRefreshKey] = useState(0);
   const profileUsernameRef = useRef('');
   const [settlementList, setSettlementList] = useState([]);
   const navigate = useNavigate();
@@ -32,10 +37,10 @@ function App() {
     }
     const { data, error } = await supabase
         .from('settlements')
-        .select('id, data, created_at, status')
+        .select('id, data, created_at, status, updated_at')
         .eq('user_id', targetUserId)
         .not('status', 'eq', 'deleted')
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching settlement list:', error);
@@ -51,7 +56,7 @@ function App() {
 
     const targetUserId = getTargetUserId(user);
     
-    const initialData = { title: '새로운 정산', subtitle: 'Gently Split the Bill FAST', participants: [{ id: 1, name: '참석자 1' }], expenses: [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }], personalDeductionItems: {} };
+    const initialData = { title: '새로운 정산', subtitle: 'Gently Split the Bill FAST', participants: [{ id: 1, name: '참석자 1' }], expenses: [{ id: 1, itemName: '저녁 식사', totalCost: 100000, attendees: { 1: true } }], personalDeductionItems: {}, paymentStatus: {} };
     const { data: newSettlement, error: createError } = await supabase
         .from('settlements')
         .insert({ data: initialData, user_id: targetUserId, status: 'active' })
@@ -62,11 +67,11 @@ function App() {
         console.error('Error creating new settlement:', createError);
         alert('새로운 정산 시트를 만드는 데 실패했습니다.');
     } else if (newSettlement) {
-        setSettlementList(list => [newSettlement, ...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        fetchSettlementList(user);
         navigate(`/settlement/${newSettlement.id}`);
         setIsSidebarOpen(false);
     }
-  }, [session, getTargetUserId, isGuest, navigate]);
+  }, [session, getTargetUserId, isGuest, navigate, fetchSettlementList]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -76,51 +81,49 @@ function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (!session && location.pathname !== '/') {
+      if (_event === 'SIGNED_OUT') {
         navigate('/');
       }
-      setLoading(false);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate]);
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (session) {
+    if (session) {
+      const loadUserData = async () => {
         setLoading(true);
         const user = session.user;
         const isGuestUser = user.id === import.meta.env.VITE_GUEST_USER_ID;
         setIsGuest(isGuestUser);
         setIsOwner(user.id === import.meta.env.VITE_OWNER_USER_ID);
 
-        await fetchSettlementList(user);
-
-        if (location.pathname === '/') {
-            const targetUserId = getTargetUserId(user);
-            const { data: latestSettlement } = await supabase
-                .from('settlements')
-                .select('id')
-                .eq('user_id', targetUserId)
-                .not('status', 'eq', 'deleted')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-            
-            if (latestSettlement) {
-                navigate(`/settlement/${latestSettlement.id}`);
-            } else if (!isGuestUser) {
-                createNewSettlement();
-            }
+        if (isGuestUser) {
+          setUsername('게스트');
+        } else {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+          setUsername(profile?.username || '사용자');
         }
-        setLoading(false);
-      }
-    };
 
-    loadInitialData();
-  }, [session, fetchSettlementList, getTargetUserId, createNewSettlement, navigate, location.pathname]);
+        await fetchSettlementList(user);
+        setLoading(false);
+      };
+      loadUserData();
+    }
+  }, [session, fetchSettlementList]);
+
+  useEffect(() => {
+    if (session && isGuest && location.pathname === '/' && settlementList.length > 0) {
+      navigate(`/settlement/${settlementList[0].id}`, { replace: true });
+    }
+  }, [session, isGuest, location.pathname, settlementList, navigate]);
+
 
   const showModal = useCallback(({ title, content, onConfirm = null }) => {
     setModalState({ isOpen: true, title, content, onConfirm });
@@ -132,7 +135,6 @@ function App() {
 
   const handleLogout = async () => { 
     await supabase.auth.signOut();
-    navigate('/');
   };
 
   const handleShare = () => {
@@ -172,6 +174,7 @@ function App() {
         showModal({ title: '오류', content: `프로필 업데이트 실패: ${error.message}` });
       } else {
         showModal({ title: '성공', content: '사용자 이름이 성공적으로 저장되었습니다.' });
+        setUsername(newUsername);
         setCommentRefreshKey(k => k + 1);
       }
     }, 200);
@@ -227,7 +230,8 @@ function App() {
         console.error('Error archiving settlement:', updateError);
     } else {
         showModal({ title: '완료', content: '정산이 완료되어 보관되었습니다.' });
-        setSettlementList(list => list.map(s => s.id === settlementId ? updatedSettlement : s).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+        setSettlementList(list => list.map(s => s.id === settlementId ? updatedSettlement : s).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)));
+        setPageRefreshKey(k => k + 1);
         navigate(`/settlement/${settlementId}`);
     }
   };
@@ -237,7 +241,7 @@ function App() {
       title: '정산 재활성화',
       content: '보관된 정산을 다시 수정하시겠습니까?',
       onConfirm: async () => {
-        const { error: reactivateError } = await supabase
+        const { data: updatedSettlement, error: reactivateError } = await supabase
           .from('settlements')
           .update({ status: 'active' })
           .eq('id', idToReactivate)
@@ -251,7 +255,8 @@ function App() {
         }
 
         showModal({ title: '성공', content: '정산이 다시 활성화되어 수정을 계속할 수 있습니다.' });
-        await fetchSettlementList(session?.user);
+        setSettlementList(list => list.map(s => s.id === idToReactivate ? updatedSettlement : s).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)));
+        setPageRefreshKey(k => k + 1);
         navigate(`/settlement/${idToReactivate}`);
       }
     });
@@ -277,7 +282,7 @@ function App() {
     });
   };
 
-  if (loading && !session) {
+  if (loading) {
     return <div className="w-full h-screen flex items-center justify-center">Loading...</div>;
   }
 
@@ -293,44 +298,48 @@ function App() {
       </Modal>
       
       <Routes>
-        <Route path="/" element={!session ? <Login /> : <div className="w-full h-screen flex items-center justify-center">Loading...</div>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={
+          <PrivateRoute session={session}>
+            <Dashboard username={username} settlementList={settlementList} createNewSettlement={createNewSettlement} />
+          </PrivateRoute>
+        } />
         <Route path="/settlement/:id" element={
-          !session ? <Login /> : (
-            <>
-              <Sidebar 
-                settlements={settlementList}
-                onSelectSettlement={handleSelectSettlement} 
-                onDeleteSettlement={handleDeleteSettlement}
-                createNewSettlement={createNewSettlement}
-                currentSettlementId={location.pathname.split('/').pop()}
-                isGuest={isGuest}
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                onOpenProfileModal={handleOpenProfileModal}
-                onLogout={handleLogout}
+          <PrivateRoute session={session}>
+            <Sidebar 
+              settlements={settlementList}
+              onSelectSettlement={handleSelectSettlement} 
+              onDeleteSettlement={handleDeleteSettlement}
+              createNewSettlement={createNewSettlement}
+              currentSettlementId={location.pathname.split('/').pop()}
+              isGuest={isGuest}
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              onOpenProfileModal={handleOpenProfileModal}
+              onLogout={handleLogout}
+            />
+            <div className="w-full p-4 sm:p-6 lg:p-8">
+              <header className="flex items-center justify-between w-full mb-6">
+                <div className="flex items-center gap-2">
+                  <button title="Open sidebar" onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
+                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                  </button>
+                  <button title="Share URL" onClick={handleShare} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
+                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
+                  </button>
+                </div>
+              </header>
+              <SettlementPage 
+                isGuest={isGuest} 
+                isOwner={isOwner} 
+                showModal={showModal} 
+                commentRefreshKey={commentRefreshKey} 
+                pageRefreshKey={pageRefreshKey}
+                handleCompleteSettlement={handleCompleteSettlement}
+                handleReactivateSettlement={handleReactivateSettlement}
               />
-              <div className="w-full p-4 sm:p-6 lg:p-8">
-                <header className="flex items-center justify-between w-full mb-6">
-                  <div className="flex items-center gap-2">
-                    <button title="Open sidebar" onClick={() => setIsSidebarOpen(true)} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
-                      <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                    <button title="Share URL" onClick={handleShare} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md">
-                      <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
-                    </button>
-                  </div>
-                </header>
-                <SettlementPage 
-                  isGuest={isGuest} 
-                  isOwner={isOwner} 
-                  showModal={showModal} 
-                  commentRefreshKey={commentRefreshKey} 
-                  handleCompleteSettlement={handleCompleteSettlement}
-                  handleReactivateSettlement={handleReactivateSettlement}
-                />
-              </div>
-            </>
-          )
+            </div>
+          </PrivateRoute>
         } />
       </Routes>
     </div>

@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const Login = () => {
@@ -8,6 +8,9 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,6 +19,7 @@ const Login = () => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      navigate(from, { replace: true });
     } catch (error) {
       setError(error.message);
     } finally {
@@ -32,6 +36,7 @@ const Login = () => {
         password: import.meta.env.VITE_GUEST_USER_PASSWORD,
       });
       if (error) throw error;
+      navigate(from, { replace: true });
     } catch (error) {
       setError(error.message);
     } finally {
