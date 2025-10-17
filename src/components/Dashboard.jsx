@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const Dashboard = ({ username, settlementList, createNewSettlement }) => {
+const Dashboard = ({ username, settlementList, createNewSettlement, isOwner, onLogout }) => {
   const navigate = useNavigate();
 
   const handleContinueLatest = () => {
@@ -13,9 +13,19 @@ const Dashboard = ({ username, settlementList, createNewSettlement }) => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">환영합니다, {username}님!</h1>
-        <p className="text-gray-600 mt-1">오늘의 정산을 시작해 보세요.</p>
+      <header className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">환영합니다, {username}님!</h1>
+          <p className="text-gray-600 mt-1">오늘의 정산을 시작해 보세요.</p>
+        </div>
+        {isOwner && (
+          <button 
+            onClick={onLogout}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow"
+          >
+            로그아웃
+          </button>
+        )}
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

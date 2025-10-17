@@ -294,7 +294,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={
           <PrivateRoute session={session}>
-            <Dashboard username={username} settlementList={settlementList} createNewSettlement={createNewSettlement} />
+            <Dashboard username={username} settlementList={settlementList} createNewSettlement={createNewSettlement} isOwner={isOwner} onLogout={handleLogout} />
           </PrivateRoute>
         } />
         <Route path="/" element={
